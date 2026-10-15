@@ -11,6 +11,8 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "test": "vitest run",
+    "pretest:e2e": "npm run build",
+    "test:e2e": "node validation/run-e2e.mjs",
     "lint": "oxlint",
     "validate:pipeline": "python validation/opencv_reference.py"
   },

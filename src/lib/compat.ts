@@ -9,7 +9,6 @@ export function checkCompatibility(): CompatIssue | null {
   const missing: string[] = []
   if (typeof WebAssembly !== 'object') missing.push('WebAssembly')
   if (typeof Worker === 'undefined') missing.push('Web Workers')
-  if (typeof indexedDB === 'undefined') missing.push('IndexedDB')
   if (typeof document !== 'undefined' && !document.createElement('canvas').getContext('2d')) missing.push('Canvas')
   if (missing.length === 0) return null
   return {

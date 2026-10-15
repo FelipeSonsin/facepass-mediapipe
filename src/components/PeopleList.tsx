@@ -30,12 +30,12 @@ export function PeopleList() {
   }
 
   return (
-    <section aria-labelledby={headingId} className="rounded-2xl border border-line bg-surface shadow-[var(--shadow-panel)]">
-      <div className="flex items-baseline justify-between gap-3 border-b border-line px-4 py-3 sm:px-5">
-        <h2 id={headingId} className="font-semibold">
+    <section aria-labelledby={headingId} className="overflow-hidden rounded-xl border border-line bg-surface shadow-[var(--shadow-panel)]">
+      <div className="flex items-baseline gap-3 border-b border-line px-5 py-4 sm:px-6">
+        <h2 id={headingId} className="text-sm font-semibold">
           Pessoas cadastradas
         </h2>
-        {status === 'ready' ? <span className="text-sm tabular-nums text-muted">{people.length}</span> : null}
+        {status === 'ready' ? <span className="text-xs tabular-nums text-muted">{people.length}</span> : null}
       </div>
       <p className="sr-only" aria-live="polite">
         {notice}
@@ -43,11 +43,11 @@ export function PeopleList() {
       {status === 'loading' ? <p className="px-4 py-4 text-sm text-muted sm:px-5">Carregando cadastros…</p> : null}
       {status === 'error' ? (
         <p className="px-4 py-4 text-sm text-attn sm:px-5">
-          Os cadastros não puderam ser lidos: {error} Verifique se o navegador permite armazenamento local.
+          Os cadastros não puderam ser lidos: {error}
         </p>
       ) : null}
       {status === 'ready' && people.length === 0 ? (
-        <p className="px-4 py-4 text-sm text-muted sm:px-5">Nenhuma pessoa cadastrada ainda.</p>
+        <p className="px-5 py-6 text-sm text-muted sm:px-6">Nenhuma pessoa cadastrada ainda.</p>
       ) : null}
       {people.length > 0 ? (
         <ul className="max-h-[22rem] divide-y divide-line overflow-y-auto">
@@ -55,14 +55,13 @@ export function PeopleList() {
             editing === p.id ? (
               <EditRow key={p.id} person={p} others={people} onDone={(msg) => { setEditing(null); if (msg) setNotice(msg) }} />
             ) : (
-              <li key={p.id} className="flex items-center gap-3 px-4 py-2.5 sm:px-5">
+              <li key={p.id} className="flex items-center gap-3 px-5 py-4 sm:px-6">
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium" title={p.name}>
+                  <p className="truncate text-sm font-medium" title={p.name}>
                     {p.name}
                   </p>
-                  <p className="text-sm text-muted">
+                  <p className="mt-0.5 text-xs leading-relaxed text-muted" title={p.updatedAt !== p.createdAt ? `Atualizado em ${dateFormat.format(p.updatedAt)}` : undefined}>
                     Cadastrado em <time dateTime={new Date(p.createdAt).toISOString()}>{dateFormat.format(p.createdAt)}</time>
-                    {p.updatedAt !== p.createdAt ? <> · atualizado em {dateFormat.format(p.updatedAt)}</> : null}
                   </p>
                   {!isCompatible(p) ? <p className="text-sm text-attn">Cadastro de uma versão anterior. Exclua e cadastre de novo.</p> : null}
                 </div>
@@ -89,7 +88,7 @@ export function PeopleList() {
         onCancel={() => setToDelete(null)}
       >
         <p>
-          As amostras faciais de <strong className="font-medium text-ink">{toDelete?.name}</strong> serão apagadas deste navegador. Essa ação não pode ser desfeita.
+          As amostras faciais de <strong className="font-medium text-ink">{toDelete?.name}</strong> serão apagadas do banco local. Essa ação não pode ser desfeita.
         </p>
       </ConfirmDialog>
     </section>

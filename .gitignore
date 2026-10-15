@@ -21,6 +21,10 @@ dist-ssr
 __pycache__/
 *.py[cod]
 
+# Registros faciais locais (o servidor cria banco.json quando necessário)
+/banco.json
+/banco.json.*
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

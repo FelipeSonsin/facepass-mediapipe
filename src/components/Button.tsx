@@ -4,9 +4,9 @@ type Variant = 'primary' | 'secondary' | 'ghost' | 'danger'
 
 const VARIANTS: Record<Variant, string> = {
   primary: 'bg-action text-white hover:bg-action-hover active:bg-action-press disabled:bg-action/40 disabled:text-white/60',
-  secondary: 'bg-raised text-ink border border-line-strong hover:border-[#4a5f7d] hover:bg-[#1c2a42] active:bg-[#14203a] disabled:text-faint',
+  secondary: 'bg-surface text-ink border border-line-strong hover:border-muted hover:bg-raised active:bg-line disabled:text-faint',
   ghost: 'text-muted hover:text-ink hover:bg-raised active:bg-sunken disabled:text-faint',
-  danger: 'bg-danger text-[#1a0a0b] hover:bg-[#ee7d76] active:bg-[#d5554d] disabled:opacity-50',
+  danger: 'bg-danger text-white hover:bg-[#a62c2c] active:bg-[#922727] disabled:opacity-50',
 }
 
 interface Props extends ButtonHTMLAttributes<HTMLButtonElement> {

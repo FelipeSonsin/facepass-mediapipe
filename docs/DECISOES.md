@@ -14,7 +14,7 @@
 | Coletar as 5 amostras do cadastro | Máquina de estados testável | `src/enrollment/enrollmentSession.ts` |
 | Câmera única e compartilhada | Controlador com `generation` | `src/camera/cameraController.ts` |
 | Ciclo único de análise | Analisador de quadros | `src/vision/analyzer.ts` |
-| Persistência | IndexedDB (`facepass` / `people`) | `src/storage/` |
+| Persistência | API local + `banco.json` (Node.js) | `server/`, `src/storage/` |
 
 A identificação **nunca** usa só pontos, formato do rosto ou presença de face: a decisão vem
 sempre da comparação de embeddings do SFace.
@@ -95,7 +95,7 @@ descarta resultados de outra sessão, de quadros anteriores ao último aplicado 
 - Antes de gravar, as novas amostras são comparadas com os cadastros existentes. Se o rosto já
   existe, um diálogo pergunta se deve **atualizar** o cadastro existente; nada é sobrescrito em
   silêncio. Nomes repetidos são permitidos (identificador interno é um UUID) e sinalizados.
-- A confirmação “Cadastro concluído” só aparece depois que a transação do IndexedDB termina.
+- A confirmação “Cadastro concluído” só aparece depois que a API confirma a gravação no `banco.json`.
 
 ## Detecção de várias pessoas
 
@@ -121,11 +121,14 @@ são suspensos. A guarda roda em CPU: nos testes, a versão GPU perdeu rostos qu
 ## Privacidade e armazenamento
 
 - Só vídeo é solicitado (sem microfone), e só após clique.
-- Nenhum quadro, embedding ou nome sai do navegador; nenhum recurso vem de CDN (verificado no E2E).
-- O IndexedDB guarda apenas: `id`, `name`, `samples` (5 vetores de 128 floats), `createdAt`,
+- Imagens ficam no navegador; nomes e embeddings são enviados apenas à API local. Nenhum recurso vem de CDN.
+- O `banco.json` guarda: `id`, `name`, `samples` (5 vetores de 128 números), `createdAt`,
   `updatedAt`, `modelVersion`, `pipelineVersion`. Nenhuma imagem.
 - Excluir remove o registro persistido e a representação em memória, e abre nova sessão (a
   liberação daquela pessoa some).
+- O IndexedDB é usado somente para migrar uma vez os registros da versão anterior, preservando
+  os originais. A persistência futura pode trocar de repositório sem alterar o reconhecimento.
+  Detalhes em [BANCO.md](BANCO.md).
 
 ## Limites de segurança
 
@@ -133,4 +136,4 @@ O FacePass demonstra identificação facial com confirmação visual. **Ele não
 autorização segura**: a confirmação na tela não deve, sozinha, liberar portas, contas ou recursos
 externos. **Não há detecção de vivacidade (anti-spoofing)**: fotos, telas ou vídeos de uma pessoa
 cadastrada podem ser aceitos; resistência a isso exige validação específica. Os dados ficam no
-navegador e podem ser lidos por quem tem acesso a esse perfil do navegador.
+arquivo local e podem ser lidos por quem tem acesso ao computador e à pasta do projeto.

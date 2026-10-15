@@ -1,4 +1,4 @@
-// Estado em memória dos cadastros, sincronizado com o IndexedDB.
+// Estado em memória dos cadastros, sincronizado com a API do banco local.
 // Componentes leem via useSyncExternalStore; o reconhecimento lê `compatible()`.
 import { useSyncExternalStore } from 'react'
 import { PIPELINE_VERSION } from '../config/recognition'

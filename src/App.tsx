@@ -42,7 +42,17 @@ export default function App() {
         Pular para o conteúdo
       </a>
       <Header tab={tab} />
-      <main id="conteudo" tabIndex={-1} className="outline-none mx-auto max-w-6xl px-4 py-5 sm:px-6 sm:py-7">
+      <main id="conteudo" tabIndex={-1} className="outline-none mx-auto max-w-6xl px-5 py-7 sm:px-8 sm:py-10">
+        <div className="mb-7 sm:mb-8">
+          <h1 className="text-[28px] font-semibold leading-tight tracking-[-0.035em] sm:text-[32px]">
+            {tab === 'cadastro' ? 'Cadastrar rosto' : 'Testar acesso'}
+          </h1>
+          <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted sm:text-[15px]">
+            {tab === 'cadastro'
+              ? 'Adicione uma pessoa para reconhecê-la pela câmera.'
+              : 'Posicione o rosto diante da câmera para verificar sua identidade.'}
+          </p>
+        </div>
         {compat ? (
           <div className="mb-5 flex items-start gap-3 rounded-xl border border-attn-line bg-attn-bg p-4" role="alert">
             <TriangleAlert className="mt-0.5 size-5 shrink-0 text-attn" aria-hidden />

@@ -65,7 +65,7 @@ export function useEnrollment() {
     setPhase({ kind: 'saving' })
     try {
       await peopleStore.add(nameRef.current, samples)
-      // A confirmação só aparece depois que a transação do IndexedDB foi concluída.
+      // A confirmação só aparece depois que a API confirma a gravação no banco.json.
       setPhase({ kind: 'done', name: nameRef.current, updated: false })
     } catch (e) {
       setPhase({ kind: 'error', message: storageMessage(e) })
@@ -160,6 +160,6 @@ export function useEnrollment() {
 }
 
 function storageMessage(e: unknown) {
-  if (e instanceof StorageError && e.kind === 'quota') return 'Não há espaço para salvar neste navegador. Libere espaço e tente de novo.'
-  return 'Não foi possível salvar o cadastro neste navegador. Verifique se o navegador permite armazenamento local e tente de novo.'
+  if (e instanceof StorageError) return e.message
+  return 'Não foi possível salvar o cadastro no banco local. Verifique o servidor e tente de novo.'
 }

@@ -1,5 +1,5 @@
-import { CircleCheck, Lightbulb, Move, ScanFace, ShieldCheck } from 'lucide-react'
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { ChevronDown, CircleCheck, ScanFace } from 'lucide-react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { useCamera } from '../camera/cameraController'
 import { useEnrollment } from '../enrollment/useEnrollment'
 import { normalizeName, sameName, validateName } from '../lib/names'
@@ -73,174 +73,175 @@ export function EnrollView() {
   const stageHint = capturing ? phase.hint || guidance.hint : cam.status === 'on' ? guidance.hint : null
 
   return (
-    // Celular: câmera → formulário → lista → dicas (o botão fica perto da câmera).
-    // Computador: câmera e dicas à esquerda; formulário e lista à direita.
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_380px] lg:grid-rows-[auto_1fr] lg:items-start lg:gap-x-6 lg:gap-y-5">
-      <div className="lg:col-start-1 lg:row-start-1">
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-x-8">
+      <div className="min-w-0">
         <CameraStage
           label="Prévia da câmera para cadastro"
           tone={stageTone}
           hint={stageHint}
-          progress={capturing ? { count: phase.count, total: phase.total } : undefined}
-          className="aspect-video"
+          className="aspect-[16/10] min-h-64"
         />
+        <details className="group mt-4 text-sm text-muted">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-md px-1 font-medium hover:text-ink [&::-webkit-details-marker]:hidden">
+            Dicas para uma boa captura
+            <ChevronDown className="size-4 shrink-0 transition-transform group-open:rotate-180" aria-hidden />
+          </summary>
+          <ul className="mt-1 space-y-2 border-l-2 border-line pl-4 leading-relaxed" aria-label="Dicas de enquadramento e iluminação">
+            <li>Enquadre o rosto inteiro e olhe de frente para a câmera.</li>
+            <li>Use luz de frente. Evite janelas ou lâmpadas atrás de você.</li>
+            <li>Durante a captura, mova a cabeça bem de leve.</li>
+          </ul>
+        </details>
       </div>
-      <ul className="order-last grid gap-3 text-sm text-muted sm:grid-cols-3 lg:order-none lg:col-start-1 lg:row-start-2" aria-label="Dicas de enquadramento e iluminação">
-        <Tip icon={<ScanFace className="size-4" aria-hidden />}>Rosto inteiro dentro da moldura, olhando para a câmera.</Tip>
-        <Tip icon={<Lightbulb className="size-4" aria-hidden />}>Luz de frente para o rosto. Evite janela ou lâmpada atrás de você.</Tip>
-        <Tip icon={<Move className="size-4" aria-hidden />}>Durante a captura, mova a cabeça bem de leve.</Tip>
-      </ul>
 
-      <div className="flex flex-col gap-5 lg:col-start-2 lg:row-span-2 lg:row-start-1">
-        <section aria-labelledby={ids.heading} className="rounded-2xl border border-line bg-surface p-4 shadow-[var(--shadow-panel)] sm:p-5">
-          <h1 id={ids.heading} className="text-xl font-semibold tracking-[-0.01em]">
-            Cadastrar rosto
-          </h1>
-          <p className="mt-1 text-sm text-muted">Informe o nome, ative a câmera e registre 5 amostras do rosto.</p>
+      <section aria-labelledby={ids.heading} className="rounded-xl border border-line bg-surface p-6 shadow-[var(--shadow-panel)] sm:p-7">
+        <h2 id={ids.heading} className="text-base font-semibold tracking-[-0.015em]">
+          Dados da pessoa
+        </h2>
+        <p className="mt-1.5 text-sm leading-relaxed text-muted">Informe o nome e registre o rosto pela câmera.</p>
 
-          {phase.kind === 'done' ? (
-            <div className="animate-grant mt-5 rounded-xl border border-ok-line bg-ok-bg p-4" role="status">
-              <div className="flex items-start gap-3">
-                <CircleCheck className="mt-0.5 size-5 shrink-0 text-ok" aria-hidden />
-                <div className="min-w-0">
-                  <p className="font-medium text-ok-ink">{phase.updated ? 'Cadastro atualizado' : 'Cadastro concluído'}</p>
-                  <p className="mt-0.5 break-words text-sm text-ink">
-                    O rosto de {phase.name} já pode ser identificado na página de teste de acesso.
-                  </p>
-                </div>
-              </div>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <a
-                  href="#/interacao"
-                  className="inline-flex min-h-11 items-center justify-center rounded-lg bg-action px-4 text-[15px] font-medium text-white transition-[background-color] duration-150 hover:bg-action-hover"
-                >
-                  Testar acesso agora
-                </a>
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    setName('')
-                    setConsent(false)
-                    reset()
-                  }}
-                >
-                  Cadastrar outra pessoa
-                </Button>
+        {phase.kind === 'done' ? (
+          <div className="animate-grant mt-5 rounded-xl border border-ok-line bg-ok-bg p-4" role="status">
+            <div className="flex items-start gap-3">
+              <CircleCheck className="mt-0.5 size-5 shrink-0 text-ok" aria-hidden />
+              <div className="min-w-0">
+                <p className="font-medium text-ok-ink">{phase.updated ? 'Cadastro atualizado' : 'Cadastro concluído'}</p>
+                <p className="mt-0.5 break-words text-sm text-ink">
+                  O rosto de {phase.name} já pode ser identificado na página de teste de acesso.
+                </p>
               </div>
             </div>
-          ) : (
-            <form
-              className="mt-5 flex flex-col gap-5"
-              noValidate
-              onSubmit={(e) => {
-                e.preventDefault()
-                onRegister()
-              }}
-            >
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor={ids.name} className="text-sm font-medium">
-                  Nome
-                </label>
-                <input
-                  ref={nameRef}
-                  id={ids.name}
-                  name="nome"
-                  type="text"
-                  autoComplete="off"
-                  spellCheck={false}
-                  maxLength={80}
-                  placeholder="Ex.: Maria Souza…"
-                  value={name}
-                  disabled={busy}
-                  aria-invalid={!!nameError}
-                  aria-describedby={nameError ? ids.nameErr : duplicateName ? ids.nameDup : undefined}
-                  onChange={(e) => {
-                    setName(e.target.value)
-                    setNameError(null)
-                  }}
-                  onBlur={() => name && setNameError(validateName(name))}
-                  className="min-h-11 rounded-lg border border-line-strong bg-sunken px-3 text-ink placeholder:text-faint transition-[border-color] duration-150 hover:border-[#4a5f7d] focus-visible:border-focus disabled:opacity-60 aria-[invalid=true]:border-attn"
-                />
-                {nameError ? (
-                  <p id={ids.nameErr} className="text-sm text-attn">
-                    {nameError}
-                  </p>
-                ) : duplicateName ? (
-                  <p id={ids.nameDup} className="text-sm text-muted">
-                    Já existe um cadastro com este nome. Este será um cadastro separado.
-                  </p>
-                ) : null}
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor={ids.consent} className="flex cursor-pointer items-start gap-3 rounded-lg border border-line bg-sunken/60 p-3 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-focus">
-                  <input
-                    ref={consentRef}
-                    id={ids.consent}
-                    name="autorizacao"
-                    type="checkbox"
-                    checked={consent}
-                    disabled={busy}
-                    aria-invalid={consentError}
-                    onChange={(e) => {
-                      setConsent(e.target.checked)
-                      setConsentError(false)
-                    }}
-                    className="mt-0.5 size-5 shrink-0 accent-action focus-visible:outline-none"
-                  />
-                  <span className="text-sm">
-                    <span className="font-medium text-ink">Autorizo o cadastro do meu rosto.</span>
-                    <span className="mt-1 flex items-start gap-1.5 text-muted">
-                      <ShieldCheck className="mt-0.5 size-4 shrink-0" aria-hidden />
-                      As amostras ficam salvas só neste navegador. Nenhuma imagem é guardada.
-                    </span>
-                  </span>
-                </label>
-                {consentError ? <p className="text-sm text-attn">Marque a autorização para continuar.</p> : null}
-              </div>
-
-              {capturing ? (
-                <div className="flex flex-col gap-3" role="status" aria-live="polite">
-                  <div className="flex items-baseline justify-between">
-                    <p className="font-medium">Capturando amostras</p>
-                    <p className="text-sm tabular-nums text-muted">
-                      {phase.count} de {phase.total} amostras
-                    </p>
-                  </div>
-                  <div className="flex gap-1.5" aria-hidden="true">
-                    {Array.from({ length: phase.total }, (_, i) => (
-                      <span key={i} className={`h-1.5 flex-1 rounded-full transition-[background-color] duration-200 ${i < phase.count ? 'bg-guide' : 'bg-line'}`} />
-                    ))}
-                  </div>
-                  <p className="text-sm text-muted">{phase.hint}</p>
-                  <Button variant="secondary" onClick={cancel}>
-                    Cancelar captura
-                  </Button>
-                </div>
-              ) : phase.kind === 'saving' ? (
-                <p className="text-sm text-muted" role="status">
-                  Salvando cadastro…
+            <div className="mt-4 flex flex-wrap gap-2">
+              <a
+                href="#/interacao"
+                className="inline-flex min-h-11 items-center justify-center rounded-lg bg-action px-4 text-[15px] font-medium text-white transition-[background-color] duration-150 hover:bg-action-hover"
+              >
+                Testar acesso agora
+              </a>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setName('')
+                  setConsent(false)
+                  reset()
+                }}
+              >
+                Cadastrar outra pessoa
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <form
+            className="mt-7 flex flex-col gap-6"
+            noValidate
+            onSubmit={(e) => {
+              e.preventDefault()
+              onRegister()
+            }}
+          >
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor={ids.name} className="text-sm font-medium">
+                Nome
+              </label>
+              <input
+                ref={nameRef}
+                id={ids.name}
+                name="nome"
+                type="text"
+                autoComplete="off"
+                spellCheck={false}
+                maxLength={80}
+                placeholder="Ex.: Maria Souza"
+                value={name}
+                disabled={busy}
+                aria-invalid={!!nameError}
+                aria-describedby={nameError ? ids.nameErr : duplicateName ? ids.nameDup : undefined}
+                onChange={(e) => {
+                  setName(e.target.value)
+                  setNameError(null)
+                }}
+                onBlur={() => name && setNameError(validateName(name))}
+                className="min-h-12 w-full min-w-0 rounded-lg border border-line-strong bg-surface px-3.5 text-ink placeholder:text-faint transition-[border-color] duration-150 hover:border-muted focus-visible:border-focus disabled:bg-sunken disabled:opacity-60 aria-[invalid=true]:border-attn"
+              />
+              {nameError ? (
+                <p id={ids.nameErr} className="text-sm text-attn">
+                  {nameError}
                 </p>
-              ) : (
-                <div className="flex flex-col gap-2">
-                  <Button type="submit" aria-describedby={startError ? ids.start : undefined} icon={<ScanFace className="size-4" aria-hidden />}>
-                    Registrar rosto
-                  </Button>
-                  <div aria-live="polite">
-                    {startError ? (
-                      <p id={ids.start} className="text-sm text-attn">
-                        {startError}
-                      </p>
-                    ) : phase.kind === 'stopped' || phase.kind === 'error' ? (
-                      <p className="text-sm text-attn">{phase.message}</p>
-                    ) : null}
-                  </div>
-                </div>
-              )}
-            </form>
-          )}
-        </section>
+              ) : duplicateName ? (
+                <p id={ids.nameDup} className="text-sm text-muted">
+                  Já existe um cadastro com este nome. Este será um cadastro separado.
+                </p>
+              ) : null}
+            </div>
 
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor={ids.consent} className="flex cursor-pointer items-start gap-3 rounded-md has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-focus">
+                <input
+                  ref={consentRef}
+                  id={ids.consent}
+                  name="autorizacao"
+                  type="checkbox"
+                  checked={consent}
+                  disabled={busy}
+                  aria-invalid={consentError}
+                  onChange={(e) => {
+                    setConsent(e.target.checked)
+                    setConsentError(false)
+                  }}
+                  className="mt-0.5 size-5 shrink-0 accent-action focus-visible:outline-none"
+                />
+                <span className="text-sm">
+                  <span className="text-ink">Autorizo o cadastro do meu rosto.</span>
+                </span>
+              </label>
+              {consentError ? <p className="text-sm text-attn">Marque a autorização para continuar.</p> : null}
+            </div>
+
+            {capturing ? (
+              <div className="flex flex-col gap-3" role="status" aria-live="polite">
+                <div className="flex items-baseline justify-between">
+                  <p className="font-medium">Capturando amostras</p>
+                  <p className="text-sm tabular-nums text-muted">
+                    {phase.count} de {phase.total} amostras
+                  </p>
+                </div>
+                <div className="flex gap-1.5" aria-hidden="true">
+                  {Array.from({ length: phase.total }, (_, i) => (
+                    <span key={i} className={`h-1.5 flex-1 rounded-full transition-[background-color] duration-200 ${i < phase.count ? 'bg-guide' : 'bg-line'}`} />
+                  ))}
+                </div>
+                <Button variant="secondary" onClick={cancel}>
+                  Cancelar captura
+                </Button>
+              </div>
+            ) : phase.kind === 'saving' ? (
+              <p className="text-sm text-muted" role="status">
+                Salvando cadastro…
+              </p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                <Button type="submit" aria-describedby={startError ? ids.start : undefined} icon={<ScanFace className="size-4" aria-hidden />}>
+                  Registrar rosto
+                </Button>
+                <div aria-live="polite">
+                  {startError ? (
+                    <p id={ids.start} className="text-sm text-attn">
+                      {startError}
+                    </p>
+                  ) : phase.kind === 'stopped' || phase.kind === 'error' ? (
+                    <p className="text-sm text-attn">{phase.message}</p>
+                  ) : null}
+                </div>
+              </div>
+            )}
+            <p className="border-t border-line pt-4 text-xs leading-relaxed text-muted">
+              Seus dados ficam salvos neste computador. Nenhuma foto é armazenada.
+            </p>
+          </form>
+        )}
+      </section>
+
+      <div className="min-w-0 lg:col-span-2">
         <PeopleList />
       </div>
 
@@ -259,14 +260,5 @@ export function EnrollView() {
         ) : null}
       </ConfirmDialog>
     </div>
-  )
-}
-
-function Tip({ icon, children }: { icon: ReactNode; children: ReactNode }) {
-  return (
-    <li className="flex items-start gap-2.5 rounded-xl border border-line bg-surface/60 px-3.5 py-3">
-      <span className="mt-0.5 text-guide">{icon}</span>
-      <span>{children}</span>
-    </li>
   )
 }

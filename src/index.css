@@ -3,41 +3,40 @@
 @import '@fontsource/ibm-plex-sans/600.css';
 @import 'tailwindcss';
 
-/* Paleta FacePass — azul-grafite. Contrastes (WCAG) medidos sobre a superfície #111B2E:
-   texto #F1F5F9 ≈ 15,6:1 · texto secundário #94A3B8 ≈ 6,8:1 · texto em ação #FFF/#2563EB ≈ 5,2:1 */
+/* Superfícies neutras, uma cor de ação e cores semânticas reservadas aos resultados. */
 @theme {
   --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
 
-  --color-bg: #0b1120;
-  --color-surface: #111b2e;
-  --color-raised: #172338;
-  --color-sunken: #0d1526;
-  --color-line: #253247;
-  --color-line-strong: #34465f;
-  --color-ink: #f1f5f9;
-  --color-muted: #94a3b8;
-  --color-faint: #64748b;
-  --color-action: #2563eb;
-  --color-action-hover: #3b74f0;
-  --color-action-press: #1d4fd0;
-  --color-focus: #7aa7ff;
-  --color-guide: #8fb3ff;
-  --color-ok: #3fbf86;
-  --color-ok-ink: #8de0b6;
-  --color-ok-bg: #0f2a23;
-  --color-ok-line: #215a44;
-  --color-attn: #e8b25c;
-  --color-attn-bg: #2a2110;
-  --color-attn-line: #5a4721;
-  --color-danger: #e5675f;
-  --color-danger-bg: #2c1416;
+  --color-bg: #f5f7fa;
+  --color-surface: #ffffff;
+  --color-raised: #f0f3f7;
+  --color-sunken: #f8fafc;
+  --color-line: #e4e8ef;
+  --color-line-strong: #c5ceda;
+  --color-ink: #17212f;
+  --color-muted: #5f6b7a;
+  --color-faint: #6b7788;
+  --color-action: #245ad0;
+  --color-action-hover: #1d4db8;
+  --color-action-press: #183f96;
+  --color-focus: #245ad0;
+  --color-guide: #245ad0;
+  --color-ok: #18804e;
+  --color-ok-ink: #146b41;
+  --color-ok-bg: #f1faf5;
+  --color-ok-line: #cce8d8;
+  --color-attn: #925b0c;
+  --color-attn-bg: #fffbef;
+  --color-attn-line: #ecdcb9;
+  --color-danger: #bd3434;
+  --color-danger-bg: #fff5f5;
 
-  --shadow-panel: 0 1px 0 0 rgb(255 255 255 / 0.03) inset, 0 8px 24px -12px rgb(2 6 16 / 0.7);
+  --shadow-panel: 0 2px 6px rgb(23 33 47 / 0.025);
 }
 
 @layer base {
   html {
-    color-scheme: dark;
+    color-scheme: light;
     background: var(--color-bg);
     -webkit-tap-highlight-color: transparent;
   }
@@ -69,7 +68,7 @@
     outline-offset: 2px;
   }
   ::selection {
-    background: rgb(37 99 235 / 0.45);
+    background: rgb(36 90 208 / 0.15);
   }
 }
 

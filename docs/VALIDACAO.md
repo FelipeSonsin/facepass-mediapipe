@@ -39,7 +39,7 @@ no worker); MediaPipe ≈ **16 ms** por quadro analisado (mediana; p95 48 ms).
 
 ## 2. Testes da lógica (Vitest)
 
-Comando: `npm test` → **45 testes aprovados** em 6 arquivos (15/10/2026).
+Comando: `npm test` → **55 testes aprovados** em 8 arquivos (15/10/2026).
 
 - `match.test.ts`: aceita acima do limiar; **não escolhe o mais parecido** abaixo dele; rejeita
   **ambíguo** (margem < 0,08); aceita com margem suficiente; regra das 3 maiores; sem cadastros.
@@ -54,24 +54,27 @@ Comando: `npm test` → **45 testes aprovados** em 6 arquivos (15/10/2026).
   amostra incoerente (outra pessoa); pausa sem rosto e interrompe após 4 s; pausa por qualidade;
   exige pequena variação de posição; respeita intervalo mínimo; ignora embedding anterior a reinício.
 - `stats.test.ts`: estatísticas da calibração.
+- `jsonPeopleRepository.test.ts`: persistência em disco e leitura por outro processo; edição,
+  exclusão, escritas concorrentes, importação idempotente e preservação de JSON inválido.
+- `peopleApi.test.ts`: validação de pedidos, rejeição de origens externas e erros em JSON.
 
 Os testes de comparação e cadastro usam **dados simulados**, isolados e identificados em
 `src/test-support/simulated.ts` (vetores aleatórios com cosseno controlado; não são embeddings reais).
 
 ## 3. Testes de ponta a ponta (câmera simulada)
 
-Comandos: `python validation/make_fake_videos.py`, `npm run build`, `npm run preview` e,
-em outro terminal PowerShell:
+Comandos: `python validation/make_fake_videos.py` (quando os vídeos ainda não existem) e:
 
 ```powershell
-$env:FACEPASS_URL='http://localhost:4173'
-python validation/e2e_flows.py
+npm run test:e2e
 ```
 
-O script usa um perfil de navegador exclusivo por execução, preserva os cadastros entre os
-cenários e grava o resultado atualizado em `validation/out/e2e/resultados.json`.
+O comando gera o build, inicia servidor e banco exclusivos em uma porta livre e usa um perfil
+de navegador próprio. Não altera o `banco.json` real. Os resultados atualizados ficam em
+`validation/out/e2e/resultados.json`.
 
-Resultado em 15/10/2026 sobre o **build de produção**: **35 de 35 verificações aprovadas**,
+Resultado em 15/10/2026 da integração JSON: **49 de 49 verificações aprovadas**, incluindo
+arquivo, migração, compartilhamento entre perfis e falhas de gravação,
 com MediaPipe e SFace reais processando os vídeos da câmera simulada. `npm run build` e
 `npm run lint` também passaram. Capturas de acesso liberado e negado, no computador e no
 celular, estão em `validation/out/e2e/`.
@@ -89,7 +92,7 @@ celular, estão em `validation/out/e2e/`.
 | Desconhecido entra após pessoa reconhecida | A liberação some na troca e o desconhecido recebe “Acesso negado” após novas confirmações |
 | Pessoa sai da câmera | A liberação some em ~0,1 s (liberado 1,2–6,1 s → vazio 6,2–11,6 s → …) |
 | Duas pessoas na Interação | Só a orientação “Fique apenas uma pessoa diante da câmera.”; sem liberação |
-| Sem rosto na Interação | Área vazia |
+| Sem rosto na Interação | “Aguardando identificação”, sem liberar ou negar acesso |
 | Desligar a câmera | Liberação removida imediatamente |
 | Interrupção do vídeo (trilha encerrada) | Liberação removida e mensagem “O vídeo da câmera foi interrompido.” |
 | Troca de aba e volta | Liberação **não** é herdada; volta só após novas confirmações (~0,5 s) |
@@ -97,7 +100,7 @@ celular, estão em `validation/out/e2e/`.
 | Recadastro do mesmo rosto | Diálogo “Este rosto já está cadastrado”; atualiza sem duplicar |
 | Exclusão | Pede confirmação; remove o registro persistido; Interação mostra o estado inicial com botão “Cadastrar rosto” |
 | Permissão negada | “O acesso à câmera foi bloqueado.” com instrução |
-| Falha no armazenamento (IndexedDB indisponível, simulado) | “Os cadastros não puderam ser lidos…” |
+| Falha na API local (simulada) | “Os cadastros não puderam ser lidos…” |
 | Celular (390×844) | Uma coluna, formulário logo abaixo da câmera, reconhecimento funciona, sem rolagem horizontal |
 | Privacidade | Nenhuma requisição para fora do endereço do app durante todos os cenários |
 
@@ -117,7 +120,7 @@ gênero; link “Pular para o conteúdo” sem conflito com a navegação por ha
 Diretrizes aplicadas (web-design-guidelines): rótulos em todos os campos, botões só com ícone com
 `aria-label`, foco visível, `aria-live` para resultado e progresso, erros inline com foco no
 primeiro campo inválido, confirmação antes de excluir, aviso ao sair durante a captura, alvos de
-toque ≥ 44 px no celular, `prefers-reduced-motion`, `color-scheme: dark`, `theme-color`, datas com
+toque ≥ 44 px no celular, `prefers-reduced-motion`, `color-scheme: light`, `theme-color`, datas com
 `Intl.DateTimeFormat`, áreas seguras, sem `transition: all`, títulos e botões em caixa de frase
 (convenção do português).
 

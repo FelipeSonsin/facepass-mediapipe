@@ -33,7 +33,7 @@ export function ConfirmDialog({ open, title, children, confirmLabel, cancelLabel
         e.preventDefault()
         if (!busy) onCancel()
       }}
-      className="m-auto w-[min(26rem,calc(100vw-2rem))] overscroll-contain rounded-2xl border border-line-strong bg-surface p-0 text-ink shadow-2xl backdrop:bg-[#030712]/70"
+      className="m-auto w-[min(26rem,calc(100vw-2rem))] overscroll-contain rounded-xl border border-line bg-surface p-0 text-ink shadow-xl backdrop:bg-[#17212f]/35"
     >
       <div className="p-5 sm:p-6">
         <h2 id={titleId} className="text-lg font-semibold">

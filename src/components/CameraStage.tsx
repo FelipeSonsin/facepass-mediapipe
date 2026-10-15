@@ -100,10 +100,20 @@ export function CameraStage({ tone, hint, progress, label, controls, className =
   }
 
   return (
-    <section aria-label={label} className="overflow-hidden rounded-2xl border border-line bg-surface shadow-[var(--shadow-panel)]">
+    <section aria-label={label} className="overflow-hidden rounded-xl border border-line bg-surface shadow-[var(--shadow-panel)]">
+      <div className="flex min-h-13 items-center justify-between gap-3 border-b border-line px-4 sm:px-5">
+        <p className="text-sm font-medium">Prévia da câmera</p>
+        <p className="flex items-center gap-2 text-xs text-muted" role="status">
+          <span className={`size-1.5 rounded-full ${on ? 'bg-ok' : cam.status === 'error' ? 'bg-attn' : 'bg-line-strong'}`} aria-hidden />
+          {on ? 'Ativa' : cam.status === 'starting' ? 'Ativando…' : cam.status === 'error' ? 'Indisponível' : 'Desligada'}
+        </p>
+      </div>
       <div
-        className={`relative w-full bg-sunken ${className}`}
-        style={on && playing ? { aspectRatio: String(aspect) } : undefined}
+        className={`relative w-full overflow-hidden ${on && playing ? 'bg-[#111827]' : 'bg-raised'} ${className}`}
+        style={{
+          aspectRatio: on && playing ? String(aspect) : undefined,
+          minHeight: cam.status === 'error' || models.status === 'error' ? '20rem' : undefined,
+        }}
       >
         <video
           ref={videoRef}
@@ -119,34 +129,32 @@ export function CameraStage({ tone, hint, progress, label, controls, className =
           <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center p-3 sm:p-4">
             <p
               role="status"
-              className="max-w-[min(32rem,100%)] rounded-full bg-[#0b1120]/80 px-3.5 py-1.5 text-center text-sm text-ink shadow-sm ring-1 ring-white/10 backdrop-blur-sm"
+              className="max-w-[min(32rem,100%)] rounded-lg bg-[#17212f]/85 px-3.5 py-2 text-center text-sm text-white"
             >
               {hint}
             </p>
           </div>
         ) : null}
-        {overlay ? <div className="absolute inset-0 flex items-center justify-center p-6">{overlay}</div> : null}
+        {overlay ? <div className="absolute inset-0 flex items-center justify-center bg-raised p-6">{overlay}</div> : null}
       </div>
-      <div className="flex flex-wrap items-center gap-3 border-t border-line px-3 py-3 sm:px-4">
-        {on || cam.status === 'starting' ? (
-          <Button variant="secondary" size="sm" icon={<CameraOff className="size-4" aria-hidden />} onClick={() => camera.stop()}>
-            Desligar câmera
-          </Button>
-        ) : (
-          <Button variant="secondary" size="sm" icon={<Camera className="size-4" aria-hidden />} onClick={startCamera}>
-            Ativar câmera
-          </Button>
-        )}
-        <div className="ml-auto flex min-w-0 items-center gap-2">{controls}</div>
-      </div>
+      {on || cam.status === 'starting' || controls ? (
+        <div className="flex flex-wrap items-center gap-3 border-t border-line px-4 py-2.5 sm:px-5">
+          {on || cam.status === 'starting' ? (
+            <Button variant="ghost" size="sm" icon={<CameraOff className="size-4" aria-hidden />} onClick={() => camera.stop()}>
+              Desligar câmera
+            </Button>
+          ) : null}
+          <div className="ml-auto flex min-w-0 items-center gap-2">{controls}</div>
+        </div>
+      ) : null}
     </section>
   )
 }
 
 function StageMessage({ icon, title, body, children }: { icon: ReactNode; title: string; body: string; children?: ReactNode }) {
   return (
-    <div className="flex max-w-sm flex-col items-center gap-3 text-center">
-      <span className="grid size-12 place-items-center rounded-full bg-raised ring-1 ring-line">{icon}</span>
+    <div className="flex max-w-sm flex-col items-center gap-4 text-center">
+      <span className="mb-1 grid size-12 place-items-center text-muted">{icon}</span>
       <div>
         <p className="font-medium text-ink">{title}</p>
         <p className="mt-1 text-sm text-muted">{body}</p>

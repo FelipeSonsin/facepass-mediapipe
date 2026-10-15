@@ -1,15 +1,16 @@
 # FacePass
 
-Cadastro e identificação facial que roda **inteiramente no navegador**. Você cadastra uma pessoa
+Cadastro e identificação facial com **processamento no navegador e banco JSON local**. Você cadastra uma pessoa
 pelo nome e pelo rosto e, depois, verifica a identidade na página **Testar acesso**, mostrando
 “Acesso liberado — Olá, nome” ou “Acesso negado” para um rosto não cadastrado.
 
 - **MediaPipe** (Google, pré-treinado, Apache 2.0) localiza o rosto e seus pontos.
 - **SFace** (OpenCV Zoo, pré-treinado, Apache 2.0) gera a “assinatura” numérica do rosto (embedding).
 - **ONNX Runtime Web** executa o SFace no navegador.
-- **IndexedDB** guarda os cadastros neste navegador.
+- **API local em Node.js** guarda os cadastros no arquivo `banco.json`, na raiz do projeto.
 
-Sem API paga, sem servidor de reconhecimento e sem enviar imagens para lugar nenhum.
+Sem API paga ou servidor de reconhecimento. Imagens não saem do navegador; apenas nomes,
+assinaturas faciais e metadados são enviados à API deste computador.
 
 > ⚠️ **Importante:** o FacePass é uma demonstração de identificação facial com confirmação
 > visual. A mensagem “Acesso liberado” **não é, por si só, uma autorização segura** e não deve
@@ -39,6 +40,9 @@ O `npm run dev` prepara tudo antes de iniciar: copia o runtime do MediaPipe e ba
 para `public/models/`, conferindo tamanho e hash de cada arquivo. Se um download falhar ou um
 arquivo estiver corrompido, a mensagem diz qual. Para só preparar os arquivos: `npm run setup`.
 
+A API de cadastros inicia junto com o site, sem outro terminal. O servidor cria `banco.json`
+automaticamente se ele não existir. Se já existir, preserva os registros.
+
 ### Gerar a versão de produção
 
 ```bash
@@ -46,13 +50,16 @@ npm run build      # gera a pasta dist/
 npm run preview    # serve dist/ em http://localhost:4173 para conferir
 ```
 
-A pasta `dist/` é um site estático: pode ser publicada em qualquer hospedagem de arquivos.
+O `npm run preview` também inicia a API local e usa o mesmo `banco.json` do desenvolvimento.
+Servir apenas a pasta `dist/` em uma hospedagem estática não disponibiliza o banco: esta etapa
+precisa do servidor Node.js. A API atual foi feita para uso local neste computador.
 
 ### Outros comandos
 
 | Comando | O que faz |
 |---|---|
 | `npm test` | Testes da lógica (comparação, estabilização, cadastro, alinhamento) |
+| `npm run test:e2e` | Build e testes completos com câmera simulada, servidor e banco isolados |
 | `npm run lint` | Verificação de código |
 | `npm run validate:pipeline` | Compara o pipeline do navegador com o OpenCV oficial (requer Python; ver [VALIDACAO.md](docs/VALIDACAO.md)) |
 
@@ -78,28 +85,47 @@ Abra a aba **Testar acesso** (`/#/interacao`) e ative a câmera, se estiver desl
 Após 3 análises consecutivas, uma pessoa cadastrada recebe **Acesso liberado — Olá, nome**;
 um rosto não cadastrado recebe **Acesso negado**. Se houver semelhança ambígua entre cadastros,
 o acesso também é negado e o app pede uma nova tentativa, sem exibir um nome.
-Sem rosto, a área de resultado fica vazia. Com duas pessoas ou enquadramento ruim, siga a
+Sem rosto, aparece “Aguardando identificação”, sem decisão de acesso. Com duas pessoas ou enquadramento ruim, siga a
 orientação na câmera. Ao trocar de pessoa, desligar a câmera ou mudar de página, o resultado
 anterior é descartado; um resultado sem novas confirmações expira em até 1,2 segundo.
 
 ## Onde ficam os dados
 
-- Os cadastros ficam no **IndexedDB deste navegador e deste endereço**. Outro navegador, outro
-  perfil, uma janela anônima ou outro endereço (por exemplo `localhost:5173` × `localhost:4173`)
-  têm cadastros separados.
-- **Limpar os dados do site** (cookies e dados de sites) nas configurações do navegador **apaga
-  os cadastros**.
+- Os cadastros ficam no **arquivo `banco.json`, na raiz do projeto**. Outro navegador ou perfil
+  acessando esse servidor lê os mesmos registros. Desenvolvimento e preview também compartilham
+  esse arquivo. Atualize a página para carregar alterações feitas por outra sessão.
+- Limpar os dados do navegador não apaga o banco JSON. Faça uma cópia de `banco.json` para backup;
+  mantenha os servidores fechados ao restaurar ou editar o arquivo manualmente.
 - O que é salvo: identificador interno, nome, 5 embeddings (128 números cada), datas e versão
   do modelo/processamento. **Nenhuma foto ou quadro do vídeo é salvo**; as imagens usadas no
   processamento são descartadas logo depois.
-- Nada é enviado a serviços externos: modelos, fontes e runtimes são servidos pelo próprio app.
+- Nada é enviado a serviços externos: os cadastros vão somente para a API local, e modelos,
+  fontes e runtimes são servidos pelo próprio app.
+- `banco.json`, seus arquivos temporários e seu lock são ignorados pelo Git. O exemplo vazio
+  `banco.example.json` pode ser versionado. O banco real não fica dentro de `public/` nem de `dist/`.
+
+### Cadastros da versão anterior
+
+Ao abrir a aplicação no **mesmo navegador e endereço** usados antes, os registros do IndexedDB
+são importados automaticamente para `banco.json`. O original é preservado. A importação só é
+marcada como concluída depois da gravação confirmada, não duplica identificadores existentes e
+não reintroduz registros que você excluir depois. Se uma aba antiga impedir a migração, feche
+as outras abas do FacePass e atualize a página.
+
+### Próxima etapa: banco real
+
+A interface conversa com `/api/people`. A persistência está isolada em
+`server/jsonPeopleRepository.ts`, pelo contrato `PeopleRepository`. A futura integração com
+PostgreSQL, SQLite ou outro banco substitui esse repositório; câmera, reconhecimento e páginas
+continuam usando o mesmo contrato. Veja [Banco local](docs/BANCO.md).
 
 ## Publicar na internet (HTTPS obrigatório)
 
 Navegadores só liberam a câmera em **contexto seguro**: `https://` ou `http://localhost`.
 Se você publicar o FacePass, use **HTTPS**. Abrindo por `http://` com um IP da rede (ex.:
 `http://192.168.0.10:5173`), o app mostra “A câmera só funciona em conexão segura”.
-Para testar no celular, publique com HTTPS ou use um túnel HTTPS para o servidor local.
+O layout pode ser testado em emulação de celular. A API JSON atual aceita apenas acesso local;
+o acesso por celular físico ou publicação online exige uma etapa de backend para uso em rede.
 
 Não são necessários cabeçalhos especiais (COOP/COEP): o SFace roda com uma thread.
 Sirva arquivos `.wasm` com o tipo `application/wasm` (padrão na maioria das hospedagens).
@@ -113,7 +139,8 @@ Sirva arquivos `.wasm` com o tipo `application/wasm` (padrão na maioria das hos
 | Nenhuma câmera foi encontrada. | Conecte uma webcam. |
 | A câmera só funciona em conexão segura. | Use `http://localhost` ou HTTPS. |
 | Os modelos de reconhecimento não carregaram. | Rode `npm run setup` e confira a saída; recarregue a página. |
-| Os cadastros não puderam ser lidos. | O navegador está bloqueando armazenamento local (comum em modos privados restritos). |
+| Os cadastros não puderam ser lidos. | Confira se o servidor está em execução e se `banco.json` é válido. |
+| O banco.json está ocupado. | Aguarde a gravação. Se houve encerramento forçado, veja a recuperação do lock em `docs/BANCO.md`. |
 | Cadastro “de uma versão anterior” | O processamento mudou desde o cadastro. Exclua e cadastre de novo. |
 
 ## Estrutura do projeto
@@ -126,11 +153,13 @@ src/
   sface/           Alinhamento/recorte do OpenCV, tensor e worker do ONNX Runtime
   recognition/     Comparação de embeddings, estabilização e hook da Interação
   enrollment/      Coleta das 5 amostras e hook do Cadastro
-  storage/         IndexedDB e estado dos cadastros
+  storage/         Cliente da API, migração do IndexedDB e estado dos cadastros
   config/          Limiares e parâmetros centralizados (com justificativas)
   calibration/     Ferramenta de calibração (calibracao.html)
   validation/      Página de validação técnica (só em desenvolvimento)
 scripts/           Download/verificação dos modelos e cópia dos runtimes
+server/            API local e persistência JSON (substituível por banco real)
+shared/            Formato e validação dos registros entre navegador e servidor
 validation/        Scripts Python de validação (OpenCV oficial) e testes de ponta a ponta
 docs/              Decisões técnicas, modelos e licenças, verificações
 ```
@@ -140,3 +169,4 @@ docs/              Decisões técnicas, modelos e licenças, verificações
 - [Decisões técnicas](docs/DECISOES.md) — como o MediaPipe e o SFace se integram, regras de comparação, sessões, desempenho, privacidade.
 - [Verificações e pendências](docs/VALIDACAO.md) — o que foi testado, resultados observados, roteiro manual e calibração.
 - [Modelos e licenças](docs/MODELOS.md) — origem, versões, hashes e licenças.
+- [Banco local](docs/BANCO.md) — arquivo JSON, API, migração e futura troca de banco.

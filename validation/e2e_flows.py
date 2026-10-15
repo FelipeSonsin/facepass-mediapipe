@@ -3,9 +3,8 @@
 Pré-requisitos:
     python validation/opencv_reference.py   (gera imagens de teste)
     python validation/make_fake_videos.py   (gera os vídeos .y4m)
-    npm run dev                              (servidor em http://localhost:5173)
 Uso:
-    python validation/e2e_flows.py
+    npm run test:e2e   (build + servidor e banco isolados)
 
 Os vídeos usam imagens públicas de amostra do OpenCV. Este teste valida os FLUXOS
 (interface, estados, sessões, persistência), não a taxa de acerto do reconhecimento.
@@ -13,7 +12,9 @@ Os vídeos usam imagens públicas de amostra do OpenCV. Este teste valida os FLU
 from __future__ import annotations
 
 import json
+import math
 import os
+import re
 import sys
 import time
 from pathlib import Path
@@ -26,6 +27,7 @@ OUT = ROOT / "out" / "e2e"
 # Perfil descartável exclusivo destes testes; nunca usa o perfil pessoal do navegador.
 PROFILE = OUT / f"profile-{os.getpid()}-{time.time_ns()}"
 BASE = os.environ.get("FACEPASS_URL", "http://localhost:5173")
+DATABASE_FILE = Path(os.environ["FACEPASS_DB_FILE"]).resolve() if os.environ.get("FACEPASS_DB_FILE") else None
 CHANNEL = os.environ.get("FACEPASS_BROWSER", "msedge") or None
 DESKTOP = {"width": 1366, "height": 900}
 MOBILE = {"width": 390, "height": 844}
@@ -33,6 +35,13 @@ MOBILE = {"width": 390, "height": 844}
 results: list[dict] = []
 external: list[str] = []
 open_contexts: list = []
+legacy_fixture: dict | None = None
+
+
+def bank_people() -> list[dict]:
+    if DATABASE_FILE is None:
+        raise RuntimeError("Use npm run test:e2e para criar um banco isolado.")
+    return json.loads(DATABASE_FILE.read_text(encoding="utf-8"))["people"]
 
 
 def record(name: str, ok: bool, detail: str = "") -> None:
@@ -69,7 +78,8 @@ def granted(page: Page) -> bool:
 
 
 def activate(page: Page) -> None:
-    page.get_by_role("button", name="Ativar câmera").first.click()
+    # A recuperação usa a ação do aviso de erro; não há um segundo botão repetido.
+    page.get_by_role("button", name=re.compile(r"^(Ativar câmera|Tentar de novo)$")).first.click()
 
 
 def timeline(page: Page, seconds: float, step=0.1) -> list[tuple[float, bool]]:
@@ -118,6 +128,7 @@ def enroll(page: Page, name: str) -> float | None:
 
 
 def scenario_enroll_and_recognize(p) -> None:
+    global legacy_fixture
     ctx, page, errors = launch(p, "lena.y4m")
     page.goto(f"{BASE}/#/cadastro")
     page.wait_for_load_state("networkidle")
@@ -142,6 +153,22 @@ def scenario_enroll_and_recognize(p) -> None:
     shot(page, "cadastro_concluido")
     people = page.get_by_role("region", name="Pessoas cadastradas")
     record("Pessoa aparece na lista com data", people.get_by_text("Lena Teste").count() == 1 and people.get_by_text("Cadastrado em").count() == 1)
+    saved = bank_people()
+    legacy_fixture = next(person for person in saved if person["name"] == "Lena Teste")
+    valid_samples = len(legacy_fixture["samples"]) == 5 and all(
+        len(sample) == 128 and all(isinstance(n, (int, float)) and math.isfinite(n) for n in sample)
+        for sample in legacy_fixture["samples"]
+    )
+    record("Nome e 5 assinaturas faciais reais foram gravados no banco.json", valid_samples)
+
+    browser = p.chromium.launch(headless=True, channel=CHANNEL)
+    try:
+        other = browser.new_page()
+        other.goto(f"{BASE}/#/cadastro")
+        other.wait_for_selector("text=Lena Teste", timeout=10000)
+        record("Outro perfil de navegador lê o mesmo cadastro do banco local", True)
+    finally:
+        browser.close()
 
     page.get_by_role("link", name="Testar acesso agora").click()
     page.wait_for_url("**/#/interacao")
@@ -190,6 +217,7 @@ def scenario_enroll_and_recognize(p) -> None:
     page.get_by_label("Novo nome").fill("Lena Renomeada")
     page.get_by_role("button", name="Salvar nome").click()
     page.wait_for_selector("text=Lena Renomeada", timeout=5000)
+    record("Editar o nome atualiza o banco.json", any(person["name"] == "Lena Renomeada" for person in bank_people()))
     page.goto(f"{BASE}/#/interacao")
     activate(page)
     dt = wait_granted(page, "Lena Renomeada", timeout=30)
@@ -204,6 +232,7 @@ def scenario_enroll_and_recognize(p) -> None:
     page.wait_for_selector("text=Cadastro atualizado", timeout=10000)
     count = page.get_by_role("region", name="Pessoas cadastradas").get_by_role("listitem").count()
     record("Recadastro do mesmo rosto pede confirmação e atualiza sem duplicar", count == 1, f"{count} cadastro(s) na lista")
+    record("Recadastro preserva o identificador no arquivo", len(bank_people()) == 1 and bank_people()[0]["id"] == legacy_fixture["id"])
 
     # Celular.
     page.set_viewport_size(MOBILE)
@@ -270,7 +299,7 @@ def scenario_no_face(p) -> None:
     page.goto(f"{BASE}/#/interacao")
     time.sleep(2)
     tl = timeline(page, 4)
-    record("Interação sem rosto: área vazia", not any(g for _, g in tl))
+    record("Interação sem rosto: nenhuma liberação", not any(g for _, g in tl))
     record("Sem rosto não exibe acesso negado", page.get_by_text("Acesso negado", exact=True).count() == 0)
     ctx.close()
 
@@ -303,6 +332,7 @@ def scenario_delete(p) -> None:
     page.reload()
     page.wait_for_selector("text=Nenhuma pessoa cadastrada ainda.", timeout=10000)
     record("Exclusão com confirmação remove o cadastro persistido", True)
+    record("Exclusão também remove as assinaturas do banco.json", bank_people() == [])
     page.goto(f"{BASE}/#/interacao")
     page.wait_for_selector("text=Nenhum rosto cadastrado", timeout=5000)
     activate(page)
@@ -325,8 +355,8 @@ def scenario_errors(p) -> None:
     shot(page, "erro_permissao_negada")
     ctx.close()
 
-    script = "Object.defineProperty(window, 'indexedDB', { value: { open() { throw new DOMException('bloqueado', 'SecurityError') } } })"
-    ctx, page, _ = launch(p, "lena.y4m", init_script=script)
+    ctx, page, _ = launch(p, "lena.y4m")
+    page.route("**/api/people", lambda route: route.fulfill(status=503, content_type="application/json", body=json.dumps({"error": "Banco local indisponível para o teste."})))
     page.goto(f"{BASE}/#/cadastro")
     try:
         page.wait_for_selector("text=/Os cadastros não puderam ser lidos/", timeout=10000)
@@ -336,12 +366,89 @@ def scenario_errors(p) -> None:
     shot(page, "erro_armazenamento")
     ctx.close()
 
+    ctx, page, _ = launch(p, "lena.y4m")
+    page.route("**/api/people/*", lambda route: route.fulfill(status=507, content_type="application/json", body=json.dumps({"error": "Não há espaço em disco para salvar o cadastro."})))
+    page.goto(f"{BASE}/#/cadastro")
+    activate(page)
+    enroll(page, "Falha Gravacao")
+    page.get_by_text("Não há espaço em disco para salvar o cadastro.", exact=True).wait_for(timeout=30000)
+    record("Falha na gravação não confirma cadastro nem altera banco.json", page.get_by_text("Cadastro concluído", exact=True).count() == 0 and bank_people() == [])
+    page.unroute("**/api/people/*")
+    enroll(page, "Falha Gravacao")
+    page.get_by_text("Cadastro concluído", exact=True).wait_for(timeout=30000)
+    record("É possível tentar novamente após falha na gravação", len(bank_people()) == 1)
+    page.request.delete(f"{BASE}/api/people/{bank_people()[0]['id']}")
+    ctx.close()
+
+
+def scenario_migration(p) -> None:
+    if legacy_fixture is None:
+        raise RuntimeError("O cadastro real do cenário principal não foi concluído.")
+    fixture = {**legacy_fixture, "name": "Pessoa Migrada"}
+    ctx, page, _ = launch(p, "lena.y4m")
+    page.goto(f"{BASE}/#/cadastro")
+    page.wait_for_load_state("networkidle")
+    page.evaluate("""person => new Promise((resolve, reject) => {
+      const request = indexedDB.open('facepass', 1);
+      request.onupgradeneeded = () => request.result.createObjectStore('people', {keyPath: 'id'});
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        const db = request.result;
+        const tx = db.transaction('people', 'readwrite');
+        tx.objectStore('people').put({...person, samples: person.samples.map(s => new Float32Array(s).buffer)});
+        tx.oncomplete = () => { db.close(); resolve(); };
+        tx.onerror = () => reject(tx.error);
+      };
+    })""", fixture)
+    page.route("**/api/people/import", lambda route: route.fulfill(status=500, content_type="application/json", body=json.dumps({"error": "Falha de importação simulada."})))
+    page.reload()
+    page.get_by_text("Os cadastros não puderam ser lidos:", exact=False).wait_for(timeout=10000)
+    record("Falha na migração não apaga dados antigos nem grava parcialmente", bank_people() == [])
+    page.unroute("**/api/people/import")
+    page.reload()
+    page.get_by_text("Pessoa Migrada", exact=True).wait_for(timeout=10000)
+    record("Cadastro antigo do IndexedDB é migrado para banco.json", len(bank_people()) == 1 and bank_people()[0]["id"] == fixture["id"])
+    original_count = page.evaluate("""() => new Promise(resolve => {
+      const request = indexedDB.open('facepass', 2);
+      request.onsuccess = () => {
+        const db = request.result;
+        const count = db.transaction('people').objectStore('people').count();
+        count.onsuccess = () => { db.close(); resolve(count.result); };
+      };
+    })""")
+    record("Migração preserva os registros originais no navegador", original_count == 1)
+    page.get_by_role("link", name="Testar acesso", exact=True).click()
+    activate(page)
+    record("O rosto migrado continua sendo reconhecido", wait_granted(page, "Pessoa Migrada", timeout=30) is not None)
+    page.goto(f"{BASE}/#/cadastro")
+    page.get_by_role("button", name="Excluir cadastro de Pessoa Migrada").click()
+    page.get_by_role("dialog").get_by_role("button", name="Excluir cadastro").click()
+    page.get_by_text("Nenhuma pessoa cadastrada ainda.", exact=True).wait_for(timeout=10000)
+    page.reload()
+    page.get_by_text("Nenhuma pessoa cadastrada ainda.", exact=True).wait_for(timeout=10000)
+    record("Cadastro migrado e excluído não reaparece ao atualizar", bank_people() == [])
+    ctx.close()
+
+
+def scenario_without_indexeddb(p) -> None:
+    script = "Object.defineProperty(window, 'indexedDB', {value: undefined})"
+    ctx, page, _ = launch(p, "lena.y4m", init_script=script)
+    page.goto(f"{BASE}/#/cadastro")
+    page.get_by_text("Nenhuma pessoa cadastrada ainda.", exact=True).wait_for(timeout=10000)
+    record("O banco local funciona mesmo sem IndexedDB", page.get_by_text("Os cadastros não puderam ser lidos:", exact=False).count() == 0)
+    response = page.request.get(f"{BASE}/banco.json")
+    uppercase = page.request.get(f"{BASE}/BANCO.JSON")
+    record("banco.json não é servido como arquivo público", response.status == 403 and uppercase.status == 403)
+    ctx.close()
+
 
 def main() -> None:
     sys.stdout.reconfigure(encoding="utf-8")
+    if DATABASE_FILE is None or not DATABASE_FILE.is_relative_to(ROOT / "out"):
+        sys.exit("Use npm run test:e2e. Os testes exigem um banco separado em validation/out/.")
     OUT.mkdir(parents=True, exist_ok=True)
     with sync_playwright() as p:
-        for fn in (scenario_enroll_and_recognize, scenario_unknown, scenario_two_faces, scenario_no_face, scenario_leave_and_switch, scenario_delete, scenario_errors):
+        for fn in (scenario_enroll_and_recognize, scenario_unknown, scenario_two_faces, scenario_no_face, scenario_leave_and_switch, scenario_delete, scenario_migration, scenario_errors, scenario_without_indexeddb):
             try:
                 fn(p)
             except Exception as e:  # registra e segue para os demais cenários
@@ -358,7 +465,7 @@ def main() -> None:
                     except Exception:
                         pass
                 open_contexts.clear()
-    record("Nenhuma requisição a serviços externos (quadros e dados ficam no navegador)", not external, ", ".join(sorted(set(external)))[:300])
+    record("Nenhuma requisição a serviços externos (cadastros são enviados apenas à API local)", not external, ", ".join(sorted(set(external)))[:300])
     (OUT / "resultados.json").write_text(json.dumps(results, indent=2, ensure_ascii=False), encoding="utf-8")
     failed = [r for r in results if not r["ok"]]
     print(f"\n{len(results) - len(failed)}/{len(results)} verificações aprovadas. Capturas em {OUT}")

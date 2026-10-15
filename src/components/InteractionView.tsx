@@ -38,13 +38,12 @@ export function InteractionView() {
   }
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start lg:gap-6">
-      <h1 className="sr-only">Testar acesso</h1>
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-8">
       <CameraStage
         label="Câmera de identificação"
         tone={tone}
         hint={hasPeople ? hint : null}
-        className="aspect-video"
+        className="aspect-[16/10] min-h-64"
         controls={
           error ? (
             <p className="text-sm text-attn" role="alert">
@@ -54,18 +53,16 @@ export function InteractionView() {
         }
       />
 
-      <section aria-labelledby={headingId} className="lg:sticky lg:top-6">
-        <h2 id={headingId} className="sr-only">
+      <section aria-labelledby={headingId} className="overflow-hidden rounded-xl border border-line bg-surface shadow-[var(--shadow-panel)] lg:sticky lg:top-6">
+        <h2 id={headingId} className="border-b border-line px-6 py-4 text-sm font-semibold">
           Resultado da identificação
         </h2>
         {status === 'ready' && !hasPeople ? (
-          <div className="flex min-h-56 flex-col items-start justify-center gap-4 rounded-2xl border border-line bg-surface p-5 shadow-[var(--shadow-panel)] lg:min-h-80">
-            <span className="grid size-11 place-items-center rounded-full bg-raised ring-1 ring-line">
-              <Users className="size-5 text-muted" aria-hidden />
-            </span>
+          <div className="flex min-h-48 flex-col items-start justify-center gap-5 p-6 sm:min-h-64 sm:p-7">
+            <Users className="size-7 text-faint" strokeWidth={1.5} aria-hidden />
             <div>
-              <p className="text-lg font-semibold">Nenhum rosto cadastrado</p>
-              <p className="mt-1 text-sm text-muted">Cadastre uma pessoa para que ela possa ser identificada aqui.</p>
+              <p className="text-lg font-medium tracking-tight">Nenhum rosto cadastrado</p>
+              <p className="mt-2 text-sm leading-relaxed text-muted">Cadastre uma pessoa para começar a testar o acesso.</p>
             </div>
             <a
               href="#/cadastro"
@@ -80,29 +77,36 @@ export function InteractionView() {
           <div
             aria-live="polite"
             aria-atomic="true"
-            className={`flex min-h-56 items-center rounded-2xl border p-5 transition-[background-color,border-color] duration-200 lg:min-h-80 ${
-              granted ? 'border-ok-line bg-ok-bg' : denied ? 'border-danger/50 bg-danger-bg' : 'border-dashed border-line bg-surface/40'
+            className={`flex min-h-36 items-center border-l-[3px] p-6 transition-[background-color,border-color] duration-200 sm:min-h-64 sm:p-7 ${
+              granted ? 'border-ok bg-ok-bg' : denied ? 'border-danger bg-danger-bg' : 'border-transparent bg-surface'
             }`}
           >
             {granted ? (
-              <div key={view.grantedPersonId} className="animate-grant flex w-full flex-col gap-4">
-                <CircleCheck className="size-11 text-ok" strokeWidth={1.75} aria-hidden />
+              <div key={view.grantedPersonId} className="animate-grant flex w-full items-start gap-4 sm:flex-col sm:gap-5">
+                <CircleCheck className="size-8 shrink-0 text-ok" strokeWidth={1.5} aria-hidden />
                 <div className="min-w-0">
-                  <p className="text-[28px] font-semibold leading-tight tracking-[-0.015em] text-ok-ink">Acesso liberado</p>
-                  <p className="mt-1.5 break-words text-lg text-ink">Olá, {grantedName}</p>
+                  <p className="text-[26px] font-semibold leading-tight tracking-[-0.025em] text-ok-ink">Acesso liberado</p>
+                  <p className="mt-2 break-words text-base text-ink">Olá, {grantedName}</p>
                 </div>
               </div>
             ) : denied ? (
-              <div className="animate-grant flex w-full flex-col gap-4">
-                <CircleX className="size-11 text-danger" strokeWidth={1.75} aria-hidden />
+              <div className="animate-grant flex w-full items-start gap-4 sm:flex-col sm:gap-5">
+                <CircleX className="size-8 shrink-0 text-danger" strokeWidth={1.5} aria-hidden />
                 <div className="min-w-0">
-                  <p className="text-[28px] font-semibold leading-tight tracking-[-0.015em] text-danger">Acesso negado</p>
-                  <p className="mt-1.5 text-base text-ink">
+                  <p className="text-[26px] font-semibold leading-tight tracking-[-0.025em] text-danger">Acesso negado</p>
+                  <p className="mt-2 text-sm leading-relaxed text-muted">
                     {view.deniedReason === 'ambiguous' ? 'Não foi possível confirmar sua identidade. Olhe de frente para a câmera e tente novamente.' : 'Rosto não cadastrado. Cadastre seu rosto para testar o acesso.'}
                   </p>
                 </div>
               </div>
-            ) : null}
+            ) : (
+              <div className="space-y-2">
+                <p className="text-base font-medium text-muted">Aguardando identificação</p>
+                <p className="text-sm leading-relaxed text-muted">
+                  {cam.status === 'on' ? 'O resultado aparecerá aqui após a análise do rosto.' : 'Ative a câmera para iniciar a verificação.'}
+                </p>
+              </div>
+            )}
           </div>
         )}
       </section>
