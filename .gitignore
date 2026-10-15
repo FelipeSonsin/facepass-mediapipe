@@ -1,0 +1,43 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Configuração local e credenciais
+.env
+.env.*
+!.env.example
+
+# Cache do Python usado na validação
+__pycache__/
+*.py[cod]
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Arquivos gerados por scripts (npm run setup)
+public/models/*.onnx
+public/models/*.task
+public/models/*.tflite
+public/mediapipe/
+
+# Saídas da validação (geradas por scripts)
+validation/out/
+validation/images/
