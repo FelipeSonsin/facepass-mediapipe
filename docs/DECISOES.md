@@ -4,17 +4,17 @@
 
 | Etapa | Quem faz | Onde |
 |---|---|---|
-| Localizar o rosto e obter 478 pontos | MediaPipe Face Landmarker (pré-treinado, Apache 2.0) | `src/vision/faceLandmarker.ts` |
-| Perceber uma segunda pessoa | Face Landmarker (`numFaces: 2`) **e** BlazeFace *full range* como guarda | `src/vision/faceLandmarker.ts` |
-| Converter os 478 pontos nos 5 pontos do SFace | Mapeamento medido contra o YuNet | `src/vision/keypoints.ts` |
-| Alinhar e recortar 112×112 | Porta de `FaceRecognizerSFImpl::alignCrop` do OpenCV | `src/sface/similarityTransform.ts`, `src/sface/align.ts` |
-| Gerar o embedding (128 valores) | SFace 2021dec no ONNX Runtime Web (WASM) | `src/sface/sface.worker.ts` |
-| Comparar e decidir | Cosseno + regra de combinação + limiar + margem | `src/recognition/match.ts` |
-| Estabilizar e invalidar resultados | Máquina de estados com sessão e horário do quadro | `src/recognition/stabilizer.ts` |
-| Coletar as 5 amostras do cadastro | Máquina de estados testável | `src/enrollment/enrollmentSession.ts` |
-| Câmera única e compartilhada | Controlador com `generation` | `src/camera/cameraController.ts` |
-| Ciclo único de análise | Analisador de quadros | `src/vision/analyzer.ts` |
-| Persistência | API local + `banco.json` (Node.js) | `server/`, `src/storage/` |
+| Localizar o rosto e obter 478 pontos | MediaPipe Face Landmarker (pré-treinado, Apache 2.0) | `frontend/src/vision/faceLandmarker.ts` |
+| Perceber uma segunda pessoa | Face Landmarker (`numFaces: 2`) **e** BlazeFace *full range* como guarda | `frontend/src/vision/faceLandmarker.ts` |
+| Converter os 478 pontos nos 5 pontos do SFace | Mapeamento medido contra o YuNet | `frontend/src/vision/keypoints.ts` |
+| Alinhar e recortar 112×112 | Porta de `FaceRecognizerSFImpl::alignCrop` do OpenCV | `frontend/src/sface/similarityTransform.ts`, `frontend/src/sface/align.ts` |
+| Gerar o embedding (128 valores) | SFace 2021dec no ONNX Runtime Web (WASM) | `frontend/src/sface/sface.worker.ts` |
+| Comparar e decidir | Cosseno + regra de combinação + limiar + margem | `frontend/src/recognition/match.ts` |
+| Estabilizar e invalidar resultados | Máquina de estados com sessão e horário do quadro | `frontend/src/recognition/stabilizer.ts` |
+| Coletar as 5 amostras do cadastro | Máquina de estados testável | `frontend/src/enrollment/enrollmentSession.ts` |
+| Câmera única e compartilhada | Controlador com `generation` | `frontend/src/camera/cameraController.ts` |
+| Ciclo único de análise | Analisador de quadros | `frontend/src/vision/analyzer.ts` |
+| Persistência | API local + `banco.json` (Node.js) | `backend/src/`, `frontend/src/storage/` |
 
 A identificação **nunca** usa só pontos, formato do rosto ou presença de face: a decisão vem
 sempre da comparação de embeddings do SFace.
@@ -56,7 +56,7 @@ outra versão não são comparados e aparecem marcados na lista.
 
 ## Regra de comparação (provisória)
 
-Configuração central: [`src/config/recognition.ts`](../src/config/recognition.ts).
+Configuração central: [`frontend/src/config/recognition.ts`](../frontend/src/config/recognition.ts).
 
 1. **Pontuação por pessoa**: média das **3 maiores** similaridades entre o quadro e as 5 amostras
    da pessoa. Uma amostra ruim não decide sozinha, e uma única amostra parecida por acaso não basta.

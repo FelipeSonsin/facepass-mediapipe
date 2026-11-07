@@ -245,6 +245,21 @@ def scenario_enroll_and_recognize(p) -> None:
     overflow = page.evaluate("document.documentElement.scrollWidth > window.innerWidth")
     record("Celular: reconhece e não há rolagem horizontal", dt is not None and not overflow)
     record("Sem erros de página (cenário principal)", not errors, "; ".join(errors)[:300])
+    page.goto(f"{BASE}/calibracao.html")
+    activate(page)
+    person_id = bank_people()[0]["id"]
+    page.get_by_label("Quem está diante da câmera agora?").select_option(person_id)
+    page.get_by_role("button", name="Coletar 20 análises").click(timeout=60000)
+    page.get_by_text("20 análises coletadas.", exact=False).wait_for(timeout=30000)
+    calibration = page.evaluate("JSON.parse(localStorage.getItem('facepass-calibracao-v1'))")
+    record("Calibração coleta 20 quadros novos com MediaPipe e SFace", len(calibration) == 20 and all(r["truth"] == person_id and r["scores"][person_id] > 0.45 for r in calibration))
+    page.get_by_role("button", name="Coletar 20 análises").click()
+    page.get_by_role("button", name="Desligar câmera").click()
+    page.get_by_role("button", name="Coletar 20 análises").wait_for()
+    before = page.evaluate("JSON.parse(localStorage.getItem('facepass-calibracao-v1')).length")
+    time.sleep(0.5)
+    after = page.evaluate("JSON.parse(localStorage.getItem('facepass-calibracao-v1')).length")
+    record("Desligar a câmera interrompe a calibração e descarta resultados pendentes", before == after and before < 40)
     ctx.close()
 
 
@@ -439,6 +454,34 @@ def scenario_without_indexeddb(p) -> None:
     response = page.request.get(f"{BASE}/banco.json")
     uppercase = page.request.get(f"{BASE}/BANCO.JSON")
     record("banco.json não é servido como arquivo público", response.status == 403 and uppercase.status == 403)
+    health = page.request.get(f"{BASE}/api/health")
+    record("API de produção confirma saúde e persistência local", health.status == 200 and health.json().get("status") == "ok")
+    record(".env e chaves não são servidos ao navegador", all(page.request.get(f"{BASE}{path}").status == 403 for path in ("/.env", "/.ENV?raw", "/@fs/private/.env")))
+    ctx.close()
+
+
+def scenario_recovery(p) -> None:
+    ctx, page, _ = launch(p, "lena.y4m")
+    page.route("**/api/people", lambda route: route.fulfill(status=503, content_type="application/json", body=json.dumps({"error": "Falha temporária simulada."})))
+    page.goto(f"{BASE}/#/interacao")
+    page.get_by_text("Identificação indisponível", exact=True).wait_for(timeout=10000)
+    record("Falha ao ler cadastros suspende a identificação sem liberar nem negar", not granted(page) and page.get_by_text("Acesso negado", exact=True).count() == 0)
+    page.unroute("**/api/people")
+    page.get_by_role("button", name="Tentar carregar cadastros").click()
+    page.get_by_text("Nenhum rosto cadastrado", exact=True).wait_for(timeout=10000)
+    record("Recupera a API sem recarregar a página", True)
+    ctx.close()
+
+    ctx, page, _ = launch(p, "lena.y4m")
+    page.route("**/models/*.onnx", lambda route: route.fulfill(status=503, body="Falha simulada do modelo"))
+    page.goto(f"{BASE}/#/cadastro")
+    activate(page)
+    page.get_by_text("Os modelos de reconhecimento não carregaram.", exact=True).wait_for(timeout=60000)
+    record("Falha de modelo é explicada sem confirmar identidade", not granted(page))
+    page.unroute("**/models/*.onnx")
+    page.get_by_role("button", name="Carregar de novo").click()
+    page.get_by_text("Rosto posicionado.", exact=True).wait_for(timeout=60000)
+    record("Recupera MediaPipe e SFace após falha de carregamento", True)
     ctx.close()
 
 
@@ -448,7 +491,7 @@ def main() -> None:
         sys.exit("Use npm run test:e2e. Os testes exigem um banco separado em validation/out/.")
     OUT.mkdir(parents=True, exist_ok=True)
     with sync_playwright() as p:
-        for fn in (scenario_enroll_and_recognize, scenario_unknown, scenario_two_faces, scenario_no_face, scenario_leave_and_switch, scenario_delete, scenario_migration, scenario_errors, scenario_without_indexeddb):
+        for fn in (scenario_enroll_and_recognize, scenario_unknown, scenario_two_faces, scenario_no_face, scenario_leave_and_switch, scenario_delete, scenario_migration, scenario_errors, scenario_without_indexeddb, scenario_recovery):
             try:
                 fn(p)
             except Exception as e:  # registra e segue para os demais cenários

@@ -7,7 +7,7 @@ pelo nome e pelo rosto e, depois, verifica a identidade na página **Testar aces
 - **MediaPipe** (Google, pré-treinado, Apache 2.0) localiza o rosto e seus pontos.
 - **SFace** (OpenCV Zoo, pré-treinado, Apache 2.0) gera a “assinatura” numérica do rosto (embedding).
 - **ONNX Runtime Web** executa o SFace no navegador.
-- **API local em Node.js** guarda os cadastros no arquivo `banco.json`, na raiz do projeto.
+- **API local em Node.js** guarda os cadastros no arquivo `backend/data/banco.json`.
 
 Sem API paga ou servidor de reconhecimento. Imagens não saem do navegador; apenas nomes,
 assinaturas faciais e metadados são enviados à API deste computador.
@@ -20,7 +20,7 @@ assinaturas faciais e metadados são enviados à API deste computador.
 
 ## Do que você precisa
 
-- [Node.js](https://nodejs.org/) 20.19 ou mais recente (testado com 24.1).
+- [Node.js](https://nodejs.org/) 20.19 ou mais recente (testado com 24.20).
 - Um navegador recente: Chrome, Edge, Firefox ou Safari (testado em Edge/Chromium).
 - Uma webcam.
 - Internet **na primeira instalação**, para baixar as dependências e os modelos (~44 MB).
@@ -30,29 +30,51 @@ assinaturas faciais e metadados são enviados à API deste computador.
 Abra um terminal na pasta do projeto e execute:
 
 ```bash
-npm install
+npm ci
 npm run dev
 ```
 
-Abra **http://localhost:5173** no navegador.
+Abra **http://127.0.0.1:5173** no navegador. Execute todos os comandos na raiz
+`facepass-mediapipe/`, onde está o `package.json`.
 
 O `npm run dev` prepara tudo antes de iniciar: copia o runtime do MediaPipe e baixa os modelos
-para `public/models/`, conferindo tamanho e hash de cada arquivo. Se um download falhar ou um
+para `frontend/public/models/`, conferindo tamanho e hash de cada arquivo. Se um download falhar ou um
 arquivo estiver corrompido, a mensagem diz qual. Para só preparar os arquivos: `npm run setup`.
 
-A API de cadastros inicia junto com o site, sem outro terminal. O servidor cria `banco.json`
+A API de cadastros inicia junto com o site, sem outro terminal. O servidor cria `backend/data/banco.json`
 automaticamente se ele não existir. Se já existir, preserva os registros.
+
+### Configuração no .env
+
+O arquivo **`.env` fica na raiz**, fora do front-end. Nesta cópia ele já está criado.
+Em um novo clone, copie `.env.example` para `.env` antes de personalizar as configurações.
+O projeto também funciona com os valores padrão quando `.env` não existe.
+
+| Variável | Uso |
+|---|---|
+| `FACEPASS_PORT` | Porta de `npm start` (padrão 3000) |
+| `FACEPASS_DEV_PORT` | Porta de desenvolvimento (5173) |
+| `FACEPASS_PREVIEW_PORT` | Porta do preview (4173) |
+| `FACEPASS_DB_FILE` | Arquivo local de cadastros (`backend/data/banco.json`) |
+| `EXTERNAL_API_URL`, `EXTERNAL_API_KEY` | Reservadas, opcionais, para uma futura integração de API no back-end |
+
+MediaPipe e SFace funcionam **sem chave ou API externa**. Preencher os campos reservados não
+ativa automaticamente um serviço: a integração depende do provedor que você escolher.
+As variáveis do processo têm prioridade sobre o arquivo. Reinicie o servidor após editar.
+O `.env` é ignorado pelo Git e bloqueado no HTTP; não coloque segredos em variáveis `VITE_`.
 
 ### Gerar a versão de produção
 
 ```bash
-npm run build      # gera a pasta dist/
-npm run preview    # serve dist/ em http://localhost:4173 para conferir
+npm run build      # gera frontend/dist/ e backend/dist/
+npm start          # front-end + API em http://127.0.0.1:3000
 ```
 
-O `npm run preview` também inicia a API local e usa o mesmo `banco.json` do desenvolvimento.
-Servir apenas a pasta `dist/` em uma hospedagem estática não disponibiliza o banco: esta etapa
-precisa do servidor Node.js. A API atual foi feita para uso local neste computador.
+O servidor final em Node.js/Express serve a interface compilada e a API, sem depender do Vite.
+`GET /api/health` confirma que o arquivo de cadastros está legível. O comando opcional
+`npm run preview` serve a mesma interface com Vite em `http://127.0.0.1:4173`.
+Desenvolvimento, preview e servidor final compartilham `backend/data/banco.json`.
+Servir apenas `frontend/dist/` não disponibiliza a persistência; mantenha o servidor Node.js.
 
 ### Outros comandos
 
@@ -91,7 +113,7 @@ anterior é descartado; um resultado sem novas confirmações expira em até 1,2
 
 ## Onde ficam os dados
 
-- Os cadastros ficam no **arquivo `banco.json`, na raiz do projeto**. Outro navegador ou perfil
+- Os cadastros ficam no **arquivo `backend/data/banco.json`**. Outro navegador ou perfil
   acessando esse servidor lê os mesmos registros. Desenvolvimento e preview também compartilham
   esse arquivo. Atualize a página para carregar alterações feitas por outra sessão.
 - Limpar os dados do navegador não apaga o banco JSON. Faça uma cópia de `banco.json` para backup;
@@ -102,7 +124,7 @@ anterior é descartado; um resultado sem novas confirmações expira em até 1,2
 - Nada é enviado a serviços externos: os cadastros vão somente para a API local, e modelos,
   fontes e runtimes são servidos pelo próprio app.
 - `banco.json`, seus arquivos temporários e seu lock são ignorados pelo Git. O exemplo vazio
-  `banco.example.json` pode ser versionado. O banco real não fica dentro de `public/` nem de `dist/`.
+  `banco.example.json` pode ser versionado. O banco real não fica dentro de `frontend/public/` nem de `dist/`.
 
 ### Cadastros da versão anterior
 
@@ -115,7 +137,7 @@ as outras abas do FacePass e atualize a página.
 ### Próxima etapa: banco real
 
 A interface conversa com `/api/people`. A persistência está isolada em
-`server/jsonPeopleRepository.ts`, pelo contrato `PeopleRepository`. A futura integração com
+`backend/src/jsonPeopleRepository.ts`, pelo contrato `PeopleRepository`. A futura integração com
 PostgreSQL, SQLite ou outro banco substitui esse repositório; câmera, reconhecimento e páginas
 continuam usando o mesmo contrato. Veja [Banco local](docs/BANCO.md).
 
@@ -136,32 +158,32 @@ Sirva arquivos `.wasm` com o tipo `application/wasm` (padrão na maioria das hos
 |---|---|
 | O acesso à câmera foi bloqueado. | Clique no cadeado da barra de endereço, permita a câmera e tente de novo. |
 | A câmera está em uso por outro aplicativo. | Feche Teams, Zoom, outra aba com câmera etc. |
-| Nenhuma câmera foi encontrada. | Conecte uma webcam. |
+| Nenhuma câmera foi encontrada. | Confira a conexão e se a câmera está ativada no sistema. No Windows, veja Gerenciador de Dispositivos → Câmeras. |
 | A câmera só funciona em conexão segura. | Use `http://localhost` ou HTTPS. |
-| Os modelos de reconhecimento não carregaram. | Rode `npm run setup` e confira a saída; recarregue a página. |
-| Os cadastros não puderam ser lidos. | Confira se o servidor está em execução e se `banco.json` é válido. |
+| Os modelos de reconhecimento não carregaram. | Rode `npm run setup` e use “Carregar de novo”. |
+| Os cadastros não puderam ser lidos. | Confira o servidor e o JSON; use “Tentar carregar cadastros”. |
 | O banco.json está ocupado. | Aguarde a gravação. Se houve encerramento forçado, veja a recuperação do lock em `docs/BANCO.md`. |
 | Cadastro “de uma versão anterior” | O processamento mudou desde o cadastro. Exclua e cadastre de novo. |
 
 ## Estrutura do projeto
 
 ```
-src/
-  components/      Interface (cabeçalho, palco da câmera, moldura, abas, lista, diálogos)
-  camera/          Controle único da câmera e tratamento de erros
-  vision/          MediaPipe (pontos + guarda de várias pessoas), qualidade e ciclo de análise
-  sface/           Alinhamento/recorte do OpenCV, tensor e worker do ONNX Runtime
-  recognition/     Comparação de embeddings, estabilização e hook da Interação
-  enrollment/      Coleta das 5 amostras e hook do Cadastro
-  storage/         Cliente da API, migração do IndexedDB e estado dos cadastros
-  config/          Limiares e parâmetros centralizados (com justificativas)
-  calibration/     Ferramenta de calibração (calibracao.html)
-  validation/      Página de validação técnica (só em desenvolvimento)
+frontend/
+  src/             Interface React, câmera, MediaPipe, SFace, cadastro e reconhecimento
+  public/          Modelos verificados, runtimes locais e ícone
+  dist/            Interface compilada (gerada por npm run build)
+  vite.config.ts   Desenvolvimento, preview e configuração dos testes
+backend/
+  src/             Servidor Express, API, configuração privada e persistência JSON
+  data/            Cadastros locais; banco.example.json é o exemplo vazio versionado
+  dist/            Back-end compilado (gerado por npm run build)
+shared/            Tipos, validação de nomes e operações de embeddings comuns aos dois lados
 scripts/           Download/verificação dos modelos e cópia dos runtimes
-server/            API local e persistência JSON (substituível por banco real)
-shared/            Formato e validação dos registros entre navegador e servidor
-validation/        Scripts Python de validação (OpenCV oficial) e testes de ponta a ponta
-docs/              Decisões técnicas, modelos e licenças, verificações
+validation/        Comparação com OpenCV e testes de ponta a ponta com câmera simulada
+docs/              Decisões técnicas, modelos, verificações e revisão da entrega
+.env               Configuração local privada (não versionada)
+.env.example       Exemplo de configuração sem credenciais
+package.json       Comandos e dependências centralizados
 ```
 
 ## Documentação
@@ -170,3 +192,4 @@ docs/              Decisões técnicas, modelos e licenças, verificações
 - [Verificações e pendências](docs/VALIDACAO.md) — o que foi testado, resultados observados, roteiro manual e calibração.
 - [Modelos e licenças](docs/MODELOS.md) — origem, versões, hashes e licenças.
 - [Banco local](docs/BANCO.md) — arquivo JSON, API, migração e futura troca de banco.
+- [Revisão da entrega](docs/REVISAO.md) — escopo conferido, correções e limitações verificáveis.

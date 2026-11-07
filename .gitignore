@@ -8,7 +8,9 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
+.npm-cache/
 dist
+dist-server/
 dist-ssr
 *.local
 
@@ -24,6 +26,9 @@ __pycache__/
 # Registros faciais locais (o servidor cria banco.json quando necessário)
 /banco.json
 /banco.json.*
+/backend/data/*.json
+!/backend/data/banco.example.json
+/backend/data/*.json.*
 
 # Editor directories and files
 .vscode/*
@@ -37,10 +42,10 @@ __pycache__/
 *.sw?
 
 # Arquivos gerados por scripts (npm run setup)
-public/models/*.onnx
-public/models/*.task
-public/models/*.tflite
-public/mediapipe/
+frontend/public/models/*.onnx
+frontend/public/models/*.task
+frontend/public/models/*.tflite
+frontend/public/mediapipe/
 
 # Saídas da validação (geradas por scripts)
 validation/out/

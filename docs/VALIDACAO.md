@@ -1,8 +1,9 @@
 # Verificações executadas e pendências
 
-Validação técnica original: 08/10/2026; fluxo de acesso atualizado em 15/10/2026.
-Ambiente: Windows 11, Node 24.1, Microsoft Edge 154 (Chromium)
-em modo headless via Playwright, Python 3.13 com OpenCV 5.0.
+Revalidação após separar frontend/backend: 06/11/2026.
+Ambiente atual: Windows, Node 24.20, Chromium 156 em modo headless via Playwright,
+Python 3.13.9 e OpenCV 5.0. Medições de tempo da validação original em Edge 154
+são mantidas apenas como referência, sem caracterizar desempenho no hardware real.
 
 > **Limitação importante:** o ambiente de desenvolvimento não tinha uma webcam com uma pessoa
 > real diante dela. Toda a validação de câmera usou a **câmera simulada do Chromium** alimentada
@@ -30,8 +31,8 @@ ONNX Runtime Web) e compara com a implementação oficial do OpenCV (YuNet + `Fa
 | Comparação entre embeddings | Variações da mesma foto (rotação 8°, escala 80%, deslocamento, 25% mais escuro): cosseno mín. **0,973**. Identidades diferentes: cosseno máx. **0,169** |
 | Duas pessoas no quadro | 4 de 6 quadros sintéticos detectados como 2 rostos (com a guarda *full range*; só o Face Landmarker: 2 de 6). Nos 2 restantes os rostos têm ~9% da largura do quadro: nenhum rosto é analisável (exige-se ≥ 20%), então não há identificação |
 
-Testes unitários de equivalência: `src/sface/similarityTransform.test.ts` (recupera uma
-transformação de similaridade conhecida com erro < 0,02 px) e `src/sface/align.test.ts`
+Testes unitários de equivalência: `frontend/src/sface/similarityTransform.test.ts` (recupera uma
+transformação de similaridade conhecida com erro < 0,02 px) e `frontend/src/sface/align.test.ts`
 (ordem RGB, layout NCHW, borda 0, sem normalização).
 
 Desempenho medido (Edge headless, GPU por software): SFace ≈ **35 ms** por embedding (mediana,
@@ -39,7 +40,7 @@ no worker); MediaPipe ≈ **16 ms** por quadro analisado (mediana; p95 48 ms).
 
 ## 2. Testes da lógica (Vitest)
 
-Comando: `npm test` → **55 testes aprovados** em 8 arquivos (15/10/2026).
+Comando: `npm test` → **74 testes aprovados** em 11 arquivos.
 
 - `match.test.ts`: aceita acima do limiar; **não escolhe o mais parecido** abaixo dele; rejeita
   **ambíguo** (margem < 0,08); aceita com margem suficiente; regra das 3 maiores; sem cadastros.
@@ -57,9 +58,17 @@ Comando: `npm test` → **55 testes aprovados** em 8 arquivos (15/10/2026).
 - `jsonPeopleRepository.test.ts`: persistência em disco e leitura por outro processo; edição,
   exclusão, escritas concorrentes, importação idempotente e preservação de JSON inválido.
 - `peopleApi.test.ts`: validação de pedidos, rejeição de origens externas e erros em JSON.
+- `config.test.ts`: leitura do `.env`, prioridade das variáveis do processo, portas inválidas e
+  rejeição de arquivos de cadastros em pastas públicas ou geradas.
+- `app.test.ts`: servidor final, tipos de conteúdo de HTML/WASM, saúde do arquivo JSON,
+  bloqueio de segredos, arquivos privados e origens externas.
+- `sfaceClient.test.ts`: falha fatal do worker, inicialização interrompida e transferência de
+  quadro com erro, sem deixar a fila ocupada indefinidamente.
+- O estabilizador também exige novas confirmações após pausa longa mesmo se o timer
+  periódico do navegador estiver suspenso. A persistência cobre escritores em processos separados.
 
 Os testes de comparação e cadastro usam **dados simulados**, isolados e identificados em
-`src/test-support/simulated.ts` (vetores aleatórios com cosseno controlado; não são embeddings reais).
+`frontend/src/test-support/simulated.ts` (vetores aleatórios com cosseno controlado; não são embeddings reais).
 
 ## 3. Testes de ponta a ponta (câmera simulada)
 
@@ -69,15 +78,28 @@ Comandos: `python validation/make_fake_videos.py` (quando os vídeos ainda não 
 npm run test:e2e
 ```
 
-O comando gera o build, inicia servidor e banco exclusivos em uma porta livre e usa um perfil
+O comando gera o build, inicia o servidor Express final e um arquivo JSON exclusivo em porta livre e usa um perfil
 de navegador próprio. Não altera o `banco.json` real. Os resultados atualizados ficam em
 `validation/out/e2e/resultados.json`.
 
-Resultado em 15/10/2026 da integração JSON: **49 de 49 verificações aprovadas**, incluindo
+Resultado atual da integração JSON: **57 de 57 verificações aprovadas**, incluindo
 arquivo, migração, compartilhamento entre perfis e falhas de gravação,
 com MediaPipe e SFace reais processando os vídeos da câmera simulada. `npm run build` e
 `npm run lint` também passaram. Capturas de acesso liberado e negado, no computador e no
 celular, estão em `validation/out/e2e/`.
+
+Além dos cenários abaixo, a rodada atual cobre coleta e interrupção da calibração,
+recuperação da API na tela de acesso sem atualizar a página, falha e recarga dos modelos,
+`/api/health`, bloqueio do `.env` e ausência de requisições externas.
+O pacote MediaPipe pode tentar enviar métricas de uso: `connect-src 'self'` nos cabeçalhos
+HTTP bloqueia a telemetria no desenvolvimento, no preview e no servidor final.
+
+Para preparar a validação em outra instalação, use um Python com `opencv-python`, `numpy`
+e `playwright`, rode `python -m playwright install chromium`, inicie `npm run dev`, execute
+`python validation/opencv_reference.py` e depois `python validation/make_fake_videos.py`.
+No PowerShell, `$env:FACEPASS_BROWSER='chromium'` seleciona o Chromium instalado pelo Playwright.
+`FACEPASS_PYTHON` permite indicar o executável Python usado pelo E2E. A instalação local isolada
+utilizada nesta revisão fica em `validation/out/tools/` e é ignorada pelo Git.
 
 | Verificação | Observado |
 |---|---|
@@ -151,7 +173,7 @@ Anote, para cada passo, o que foi observado. Itens 5–8 também alimentam a cal
 
 ## Calibração com pessoas reais
 
-Os limiares em `src/config/recognition.ts` são **provisórios**. Para avaliá-los:
+Os limiares em `frontend/src/config/recognition.ts` são **provisórios**. Para avaliá-los:
 
 1. Cadastre de 3 a 10 pessoas autorizadas na aba *Cadastrar rosto*.
 2. Abra `calibracao.html` **no mesmo endereço** (ex.: `http://localhost:5173/calibracao.html`).

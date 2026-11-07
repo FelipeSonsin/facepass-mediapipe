@@ -1,8 +1,9 @@
 # Banco local de registros faciais
 
-O arquivo `banco.json`, na raiz do projeto, é a fonte dos cadastros. É criado automaticamente
-quando `npm run dev` ou `npm run preview` inicia, se ainda não existir. Esses comandos usam a
-mesma API no mesmo processo do site; não é necessário iniciar outro serviço.
+O arquivo `backend/data/banco.json`, é a fonte dos cadastros. É criado automaticamente
+quando `npm run dev`, `npm run preview` ou `npm start` inicia, se ainda não existir.
+Esses comandos usam a mesma API no mesmo processo do site; não é necessário iniciar outro serviço.
+O caminho é configurável por `FACEPASS_DB_FILE` no `.env` da raiz, sempre fora do front-end.
 
 ## Conteúdo
 
@@ -28,6 +29,7 @@ assinaturas antes de salvar. A interface só confirma o cadastro depois da grava
 
 | Método | Rota | Operação |
 |---|---|---|
+| GET | `/api/health` | Confirma que o arquivo está legível, sem expor configurações privadas |
 | GET | `/api/people` | Retorna `{ "people": [...] }` |
 | PUT | `/api/people/:id` | Cria ou atualiza um registro completo; preserva sua data de criação |
 | DELETE | `/api/people/:id` | Remove a pessoa e suas assinaturas |
@@ -72,9 +74,9 @@ O IndexedDB é opcional para novos cadastros: eles usam diretamente a API e o ar
 
 ## Troca por banco real
 
-`server/peopleApi.ts` recebe um objeto que implementa `PeopleRepository`. Atualmente esse objeto
-é `JsonPeopleRepository`, em `server/jsonPeopleRepository.ts`, instalado por
-`server/localDatabase.ts`.
+`backend/src/peopleApi.ts` recebe um objeto que implementa `PeopleRepository`. Atualmente esse objeto
+é `JsonPeopleRepository`, em `backend/src/jsonPeopleRepository.ts`, instalado por
+`backend/src/localDatabase.ts` no Vite e `backend/src/app.ts` no servidor final.
 
 Para a próxima fase, implemente `list`, `put`, `remove` e `importMissing` em um repositório do
 banco escolhido e injete-o na mesma API. Importe os registros de `people` preservando seus
@@ -83,7 +85,7 @@ não dependem do formato de persistência do servidor.
 
 ## Testes isolados
 
-`npm run test:e2e` gera o build e inicia uma instância em porta livre com um banco exclusivo
+`npm run test:e2e` gera o build e inicia o servidor Express final em porta livre com um banco exclusivo
 em `validation/out/database-e2e-*/banco.json`. A variável de servidor `FACEPASS_DB_FILE` permite
 selecionar esse caminho. Nunca use essa variável para apontar testes para os cadastros reais.
 

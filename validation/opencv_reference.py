@@ -32,7 +32,7 @@ ROOT = Path(__file__).resolve().parent
 IMAGES = ROOT / "images"
 OUT = ROOT / "out"
 PROJECT = ROOT.parent
-SFACE = PROJECT / "public" / "models" / "face_recognition_sface_2021dec.onnx"
+SFACE = PROJECT / "frontend" / "public" / "models" / "face_recognition_sface_2021dec.onnx"
 YUNET = OUT / "face_detection_yunet_2023mar.onnx"
 YUNET_URL = "https://media.githubusercontent.com/media/opencv/opencv_zoo/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx"
 BASE_URL = "http://localhost:5173"
@@ -44,6 +44,21 @@ SOURCES = {
 }
 
 
+def read_image(path: Path) -> np.ndarray:
+    # imread/imwrite usam caminhos estreitos em algumas builds do OpenCV no Windows.
+    image = cv.imdecode(np.frombuffer(path.read_bytes(), dtype=np.uint8), cv.IMREAD_COLOR)
+    if image is None:
+        raise ValueError(f"Imagem inválida: {path}")
+    return image
+
+
+def write_image(path: Path, image: np.ndarray) -> None:
+    ok, encoded = cv.imencode(path.suffix, image)
+    if not ok:
+        raise ValueError(f"Não foi possível codificar a imagem: {path}")
+    path.write_bytes(encoded.tobytes())
+
+
 def ensure_inputs() -> None:
     IMAGES.mkdir(parents=True, exist_ok=True)
     OUT.mkdir(parents=True, exist_ok=True)
@@ -53,7 +68,7 @@ def ensure_inputs() -> None:
     if not YUNET.exists():
         urllib.request.urlretrieve(YUNET_URL, YUNET)
     if not SFACE.exists():
-        sys.exit("Modelo SFace ausente: rode `npm run models` antes.")
+        sys.exit("Modelo SFace ausente: rode `npm run setup` antes.")
 
 
 def make_variants() -> list[str]:
@@ -61,16 +76,16 @@ def make_variants() -> list[str]:
     names = []
     # O Face Landmarker usa um detector de curto alcance (rostos a até ~2 m da câmera).
     # Na messi5.jpg o rosto ocupa ~8% da largura; recortamos ao redor dele, como numa webcam.
-    messi = cv.imread(str(IMAGES / "messi5.jpg"))
-    det = cv.FaceDetectorYN.create(str(YUNET), "", (messi.shape[1], messi.shape[0]), 0.8, 0.3, 5000)
+    messi = read_image(IMAGES / "messi5.jpg")
+    det = cv.FaceDetectorYN.create("onnx", np.frombuffer(YUNET.read_bytes(), dtype=np.uint8), np.empty(0, dtype=np.uint8), (messi.shape[1], messi.shape[0]), 0.8, 0.3, 5000)
     _, faces = det.detect(messi)
     x, y, w, h = faces[0][:4]
     cx, cy, side = x + w / 2, y + h / 2, max(w, h) * 2.6
     x0, y0 = int(max(0, cx - side / 2)), int(max(0, cy - side / 2))
     crop = messi[y0:int(min(messi.shape[0], cy + side / 2)), x0:int(min(messi.shape[1], cx + side / 2))]
-    cv.imwrite(str(IMAGES / "messi_face.png"), cv.resize(crop, (400, int(400 * crop.shape[0] / crop.shape[1])), interpolation=cv.INTER_CUBIC))
+    write_image(IMAGES / "messi_face.png", cv.resize(crop, (400, int(400 * crop.shape[0] / crop.shape[1])), interpolation=cv.INTER_CUBIC))
     for base in ("lena.jpg", "messi_face.png"):
-        img = cv.imread(str(IMAGES / base))
+        img = read_image(IMAGES / base)
         h, w = img.shape[:2]
         stem = Path(base).stem
         variants = {
@@ -82,21 +97,21 @@ def make_variants() -> list[str]:
         names.append(base)
         for key, v in variants.items():
             name = f"{stem}_{key}.png"
-            cv.imwrite(str(IMAGES / name), v)
+            write_image(IMAGES / name, v)
             names.append(name)
     # Quadro 16:9 (como uma webcam) com duas pessoas lado a lado.
-    a = cv.resize(cv.imread(str(IMAGES / "lena.jpg")), (360, 360))
-    b = cv.imread(str(IMAGES / "messi_face.png"))
+    a = cv.resize(read_image(IMAGES / "lena.jpg"), (360, 360))
+    b = read_image(IMAGES / "messi_face.png")
     b = cv.resize(b, (360, int(360 * b.shape[0] / b.shape[1])))[:360]
     frame = np.full((540, 960, 3), 40, np.uint8)
     frame[90:450, 100:460] = a
     frame[90:90 + b.shape[0], 500:860] = b
-    cv.imwrite(str(IMAGES / "two_faces.png"), frame)
+    write_image(IMAGES / "two_faces.png", frame)
     names.append("two_faces.png")
     # Quadros de 2 pessoas em tamanhos/proporções diferentes, para o teste de multiplicidade.
     for size in (220, 300, 400):
-        fa = cv.resize(cv.imread(str(IMAGES / "lena.jpg")), (size, size))
-        fb = cv.imread(str(IMAGES / "messi_face.png"))
+        fa = cv.resize(read_image(IMAGES / "lena.jpg"), (size, size))
+        fb = read_image(IMAGES / "messi_face.png")
         fb = cv.resize(fb, (size, int(size * fb.shape[0] / fb.shape[1])))[:size]
         for W, H in ((960, 540), (640, 480)):
             if 2 * size + 40 > W:
@@ -106,17 +121,17 @@ def make_variants() -> list[str]:
             fr[y:y + size, W // 2 - size - 10:W // 2 - 10] = fa
             fr[y:y + fb.shape[0], W // 2 + 10:W // 2 + 10 + size] = fb
             name = f"two_{size}_{W}.png"
-            cv.imwrite(str(IMAGES / name), fr)
+            write_image(IMAGES / name, fr)
             names.append(name)
     return names
 
 
 def opencv_reference(names: list[str]):
-    det = cv.FaceDetectorYN.create(str(YUNET), "", (320, 320), 0.8, 0.3, 5000)
-    rec = cv.FaceRecognizerSF.create(str(SFACE), "")
+    det = cv.FaceDetectorYN.create("onnx", np.frombuffer(YUNET.read_bytes(), dtype=np.uint8), np.empty(0, dtype=np.uint8), (320, 320), 0.8, 0.3, 5000)
+    rec = cv.FaceRecognizerSF.create("onnx", np.frombuffer(SFACE.read_bytes(), dtype=np.uint8), np.empty(0, dtype=np.uint8))
     ref = {}
     for name in names:
-        img = cv.imread(str(IMAGES / name))
+        img = read_image(IMAGES / name)
         det.setInputSize((img.shape[1], img.shape[0]))
         _, faces = det.detect(img)
         n = 0 if faces is None else len(faces)
@@ -187,9 +202,9 @@ def mapping_search(names, reports, ref):
     """Avalia, com o SFace oficial do OpenCV, qual mapeamento MediaPipe→5 pontos gera o
     embedding mais próximo do pipeline oficial (YuNet + alignCrop). Possível porque a porta
     JS foi verificada como equivalente ao OpenCV (cosseno ≥ 0,9996 com os mesmos pontos)."""
-    rec = cv.FaceRecognizerSF.create(str(SFACE), "")
+    rec = cv.FaceRecognizerSF.create("onnx", np.frombuffer(SFACE.read_bytes(), dtype=np.uint8), np.empty(0, dtype=np.uint8))
     usable = [n for n in names if reports[n].get("landmarks") and "embedding" in ref[n]]
-    imgs = {n: cv.imread(str(IMAGES / n)) for n in usable}
+    imgs = {n: read_image(IMAGES / n) for n in usable}
     results = []
     for eye_name, eye in EYE_CANDIDATES.items():
         for nose in NOSE_CANDIDATES:
@@ -237,8 +252,8 @@ def main() -> None:
             row["crop_abs_diff_max"] = int(diff.max())
             row["crop_abs_diff_mean"] = float(diff.mean())
             row["norm_raw_js"] = r["rawNorms"]["external"]
-            cv.imwrite(str(OUT / f"crop_opencv_{Path(name).stem}.png"), cv.cvtColor(o["crop_rgb"], cv.COLOR_RGB2BGR))
-            cv.imwrite(str(OUT / f"crop_js_{Path(name).stem}.png"), cv.cvtColor(decode_crop(r["crops"]["external"]), cv.COLOR_RGB2BGR))
+            write_image(OUT / f"crop_opencv_{Path(name).stem}.png", cv.cvtColor(o["crop_rgb"], cv.COLOR_RGB2BGR))
+            write_image(OUT / f"crop_js_{Path(name).stem}.png", cv.cvtColor(decode_crop(r["crops"]["external"]), cv.COLOR_RGB2BGR))
         if r.get("landmarks") and "points" in o:
             yp = np.asarray(o["points"])
             iod = np.linalg.norm(yp[0] - yp[1])
@@ -251,7 +266,7 @@ def main() -> None:
                 row[f"{s}_point_err_per_iod"] = err.round(3).tolist()
                 row[f"{s}_cos_vs_opencv_pipeline"] = c
             crop = decode_crop(r["crops"]["mp_corners"])
-            cv.imwrite(str(OUT / f"crop_mp_{Path(name).stem}.png"), cv.cvtColor(crop, cv.COLOR_RGB2BGR))
+            write_image(OUT / f"crop_mp_{Path(name).stem}.png", cv.cvtColor(crop, cv.COLOR_RGB2BGR))
         summary["per_image"][name] = row
         same = f"{row['same_points_cosine']:.6f}" if "same_points_cosine" in row else "—"
         dpx = f"{row['crop_abs_diff_max']}/{row['crop_abs_diff_mean']:.3f}" if "crop_abs_diff_max" in row else "—"

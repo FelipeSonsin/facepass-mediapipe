@@ -1,5 +1,5 @@
 // Baixa os modelos usados pelo FacePass para public/models e verifica a integridade.
-// Execução: npm run models   (roda também automaticamente antes de dev/build)
+// Execução: npm run setup (roda também automaticamente antes de dev/build)
 //
 // Os hashes abaixo vêm das fontes oficiais:
 //  - SFace: o sha256 é o "oid" do ponteiro Git LFS publicado no repositório opencv_zoo.
@@ -11,7 +11,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
-const outDir = join(root, 'public', 'models')
+const outDir = join(root, 'frontend', 'public', 'models')
 
 const MODELS = [
   {

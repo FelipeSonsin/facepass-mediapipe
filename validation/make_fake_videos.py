@@ -13,6 +13,8 @@ from pathlib import Path
 import cv2 as cv
 import numpy as np
 
+from opencv_reference import read_image
+
 ROOT = Path(__file__).resolve().parent
 IMAGES = ROOT / "images"
 OUT = ROOT / "out" / "videos"
@@ -55,11 +57,11 @@ def seconds(n: float):
 
 
 def main() -> None:
-    lena = cv.imread(str(IMAGES / "lena.jpg"))
-    messi = cv.imread(str(IMAGES / "messi_face.png"))
-    two = cv.imread(str(IMAGES / "two_300_640.png"))
-    if lena is None or messi is None or two is None:
+    if not all((IMAGES / name).is_file() for name in ("lena.jpg", "messi_face.png", "two_300_640.png")):
         sys.exit("Rode antes: python validation/opencv_reference.py (gera as imagens de teste).")
+    lena = read_image(IMAGES / "lena.jpg")
+    messi = read_image(IMAGES / "messi_face.png")
+    two = read_image(IMAGES / "two_300_640.png")
     videos = {
         "lena.y4m": [canvas_with(lena, t) for t in seconds(8)],
         "messi.y4m": [canvas_with(messi, t, size=430) for t in seconds(8)],

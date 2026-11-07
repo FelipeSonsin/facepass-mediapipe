@@ -1,5 +1,5 @@
-import { isValidEmbedding } from '../src/recognition/embedding.ts'
-import { normalizeName, validateName } from '../src/lib/names.ts'
+import { isValidEmbedding } from './embedding.ts'
+import { normalizeName, validateName } from './names.ts'
 
 export interface PersonRecord {
   id: string
