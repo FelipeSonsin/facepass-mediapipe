@@ -18,14 +18,16 @@ import re
 import sys
 import time
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from playwright.sync_api import Page, sync_playwright
 
 ROOT = Path(__file__).resolve().parent
 VIDEOS = ROOT / "out" / "videos"
 OUT = ROOT / "out" / "e2e"
-# Perfil descartável exclusivo destes testes; nunca usa o perfil pessoal do navegador.
-PROFILE = OUT / f"profile-{os.getpid()}-{time.time_ns()}"
+# Perfil descartável exclusivo dos testes, criado no temporário do SO pelo main.
+# Um caminho longo/sincronizado pode impedir o Chromium de abrir o IndexedDB no Windows.
+PROFILE: Path | None = None
 BASE = os.environ.get("FACEPASS_URL", "http://localhost:5173")
 DATABASE_FILE = Path(os.environ["FACEPASS_DB_FILE"]).resolve() if os.environ.get("FACEPASS_DB_FILE") else None
 CHANNEL = os.environ.get("FACEPASS_BROWSER", "msedge") or None
@@ -50,6 +52,8 @@ def record(name: str, ok: bool, detail: str = "") -> None:
 
 
 def launch(p, video: str | None, viewport=DESKTOP, camera_allowed=True, init_script: str | None = None):
+    if PROFILE is None:
+        raise RuntimeError("Use npm run test:e2e para iniciar um perfil isolado de testes.")
     args = ["--use-fake-device-for-media-stream"]
     if video:
         args.append(f"--use-file-for-fake-video-capture={VIDEOS / video}")
@@ -486,11 +490,13 @@ def scenario_recovery(p) -> None:
 
 
 def main() -> None:
+    global PROFILE
     sys.stdout.reconfigure(encoding="utf-8")
     if DATABASE_FILE is None or not DATABASE_FILE.is_relative_to(ROOT / "out"):
         sys.exit("Use npm run test:e2e. Os testes exigem um banco separado em validation/out/.")
     OUT.mkdir(parents=True, exist_ok=True)
-    with sync_playwright() as p:
+    with TemporaryDirectory(prefix="facepass-e2e-", ignore_cleanup_errors=True) as profile, sync_playwright() as p:
+        PROFILE = Path(profile).resolve()
         for fn in (scenario_enroll_and_recognize, scenario_unknown, scenario_two_faces, scenario_no_face, scenario_leave_and_switch, scenario_delete, scenario_migration, scenario_errors, scenario_without_indexeddb, scenario_recovery):
             try:
                 fn(p)

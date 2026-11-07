@@ -1,6 +1,6 @@
 # Verificações executadas e pendências
 
-Revalidação após separar frontend/backend: 06/11/2026.
+Revalidação após separar frontend/backend: 06/11/2026; reprodução em clone limpo: 07/11/2026.
 Ambiente atual: Windows, Node 24.20, Chromium 156 em modo headless via Playwright,
 Python 3.13.9 e OpenCV 5.0. Medições de tempo da validação original em Edge 154
 são mantidas apenas como referência, sem caracterizar desempenho no hardware real.
@@ -11,6 +11,40 @@ são mantidas apenas como referência, sem caracterizar desempenho no hardware r
 > `messi5.jpg`). **A câmera física não foi validada**, e **a taxa de acerto do reconhecimento com
 > pessoas reais não foi medida.** Siga o [roteiro de teste manual](#roteiro-de-teste-manual-com-webcam)
 > e a [calibração](#calibração-com-pessoas-reais) antes de qualquer uso.
+
+## Reprodução para avaliação a partir do GitHub
+
+Foi criado um clone separado do repositório público, inicialmente no commit `e03492a`, sem
+`.env`, `banco.json`, `node_modules`, modelos ou builds copiados da instalação do autor.
+O aplicativo foi instalado com Node 24.20 e npm 11.19, e os modelos foram baixados novamente
+das fontes oficiais, com conferência de tamanho e hash.
+
+| Verificação na cópia limpa | Resultado |
+|---|---|
+| `npm ci` | Concluído; neste Windows foi necessário `NODE_USE_SYSTEM_CA=1` para o certificado confiável da rede |
+| `npm test` | 74/74 em 11 arquivos |
+| `npm run lint` | Sem erros |
+| `npm run build` | Front-end e back-end compilados |
+| `npm run dev` | Interface, API e modelos disponíveis em HTTP 200, sem `.env` |
+| `npm start` | Interface, API e modelos disponíveis em HTTP 200; usada porta alternativa 3101 para preservar a instância do usuário |
+| Arquivo de cadastros | Criado automaticamente no clone, vazio e com `schemaVersion: 1` |
+| Comparação com OpenCV | 10 imagens comparadas; cosseno mínimo 0,999923 com os mesmos cinco pontos |
+| Suíte E2E após corrigir o perfil temporário | 57/57, incluindo cadastro, liberação, negação, persistência, migração e recuperação |
+
+A auditoria demonstrou que um perfil Chromium em caminho longo/sincronizado podia falhar
+ao abrir o IndexedDB: o teste de controle falhou no caminho de 226 caracteres e passou no
+temporário do Windows de 82 caracteres. O roteiro E2E passou a criar um perfil exclusivo com
+`TemporaryDirectory`, fora da pasta do projeto; a suíte completa foi então repetida com êxito.
+Isso não altera nem reutiliza o perfil pessoal do navegador de quem está avaliando.
+
+O requisito de Node foi alinhado às dependências atuais: o Vitest 5 não suporta Node 20,
+e os testes de persistência usam o carregamento nativo de TypeScript em processos separados.
+A versão utilizada nesta reprodução foi Node 24.x; a declaração do projeto aceita a série 22
+a partir de 22.18, a série 24 e versões a partir de 26, conforme os requisitos das ferramentas.
+
+O [README](../README.md#como-rodar) contém o procedimento para Git ou Download ZIP, as
+orientações para certificado HTTPS e o roteiro manual do avaliador. Python/OpenCV/Playwright
+são ferramentas adicionais de validação; não são necessários para abrir e usar o sistema.
 
 ## 1. Validação técnica do processamento facial
 

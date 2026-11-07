@@ -20,19 +20,31 @@ assinaturas faciais e metadados são enviados à API deste computador.
 
 ## Do que você precisa
 
-- [Node.js](https://nodejs.org/) 20.19 ou mais recente (testado com 24.20).
+- [Node.js](https://nodejs.org/) **24.x** para reproduzir o ambiente validado (24.20).
+  O projeto também declara suporte à série 22 a partir de 22.18; Node 20 não atende às
+  dependências atuais da suíte de testes.
 - Um navegador recente: Chrome, Edge, Firefox ou Safari (testado em Edge/Chromium).
 - Uma webcam.
 - Internet **na primeira instalação**, para baixar as dependências e os modelos (~44 MB).
 
 ## Como rodar
 
-Abra um terminal na pasta do projeto e execute:
+O link do GitHub contém o código: o sistema é executado no computador de quem vai avaliar.
+Para reproduzir o ambiente validado, use **Node.js 24.x**, **Chrome ou Edge**, uma webcam
+ativada e internet durante a instalação. Python, chaves de API e um banco externo não são
+necessários para usar o FacePass.
+
+Para baixar com Git e iniciar:
 
 ```bash
+git clone https://github.com/FelipeSonsin/facepass-mediapipe.git
+cd facepass-mediapipe
 npm ci
 npm run dev
 ```
+
+Se preferir **Code → Download ZIP** no GitHub, extraia o ZIP, abra o terminal na pasta que
+contém `package.json` e execute os dois últimos comandos.
 
 Abra **http://127.0.0.1:5173** no navegador. Execute todos os comandos na raiz
 `facepass-mediapipe/`, onde está o `package.json`.
@@ -46,9 +58,10 @@ automaticamente se ele não existir. Se já existir, preserva os registros.
 
 ### Configuração no .env
 
-O arquivo **`.env` fica na raiz**, fora do front-end. Nesta cópia ele já está criado.
-Em um novo clone, copie `.env.example` para `.env` antes de personalizar as configurações.
-O projeto também funciona com os valores padrão quando `.env` não existe.
+O arquivo **`.env` é opcional e fica na raiz**, fora do front-end. Ele não é enviado ao GitHub.
+Um clone novo funciona com os valores padrão, cria o JSON vazio automaticamente e permite
+cadastrar as pessoas que participarão da avaliação. Para personalizar, copie `.env.example`
+para `.env` e edite as configurações.
 
 | Variável | Uso |
 |---|---|
@@ -84,6 +97,19 @@ Servir apenas `frontend/dist/` não disponibiliza a persistência; mantenha o se
 | `npm run test:e2e` | Build e testes completos com câmera simulada, servidor e banco isolados |
 | `npm run lint` | Verificação de código |
 | `npm run validate:pipeline` | Compara o pipeline do navegador com o OpenCV oficial (requer Python; ver [VALIDACAO.md](docs/VALIDACAO.md)) |
+
+### Roteiro rápido para avaliação
+
+1. Cadastre uma pessoa com nome, autorização e as cinco amostras de rosto.
+2. Clique em **Testar acesso agora**: a pessoa cadastrada deve receber **Acesso liberado** e seu nome.
+3. Faça uma pessoa não cadastrada aparecer sozinha, bem enquadrada: deve mostrar **Acesso negado**.
+4. Saia do enquadramento ou desligue a câmera: a liberação deve desaparecer.
+5. Atualize a página ou reinicie o servidor: o cadastro deve continuar na lista e no arquivo
+   `backend/data/banco.json`.
+
+O JSON começa vazio em cada instalação; nenhum cadastro facial real do autor é publicado.
+Detalhes de cada fluxo estão abaixo. A validação automatizada com câmera simulada e suas
+limitações estão em [VALIDACAO.md](docs/VALIDACAO.md).
 
 ## Como usar
 
@@ -164,6 +190,23 @@ Sirva arquivos `.wasm` com o tipo `application/wasm` (padrão na maioria das hos
 | Os cadastros não puderam ser lidos. | Confira o servidor e o JSON; use “Tentar carregar cadastros”. |
 | O banco.json está ocupado. | Aguarde a gravação. Se houve encerramento forçado, veja a recuperação do lock em `docs/BANCO.md`. |
 | Cadastro “de uma versão anterior” | O processamento mudou desde o cadastro. Exclua e cadastre de novo. |
+
+### Certificado HTTPS na instalação
+
+Em uma rede institucional, `npm ci` ou o download dos modelos pode retornar
+`UNABLE_TO_VERIFY_LEAF_SIGNATURE` quando o Node não utiliza o certificado confiável instalado
+no Windows. Com Node.js 24.x, abra o PowerShell na pasta do projeto e execute:
+
+```powershell
+$env:NODE_USE_SYSTEM_CA='1'
+npm ci
+npm run dev
+```
+
+Essa configuração vale para o terminal atual e utiliza os certificados confiáveis do sistema,
+mantendo a verificação HTTPS. A rede precisa permitir o registro npm, o GitHub e o Google
+Cloud Storage durante a primeira instalação. Depois de baixar os arquivos, o processamento
+e os cadastros funcionam localmente.
 
 ## Estrutura do projeto
 
